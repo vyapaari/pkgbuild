@@ -1,0 +1,16 @@
+# Build artifacts
+*.pkg.tar.zst
+*.tar.xz
+*.exe
+build/
+zig-source/
+zig-*/
+
+# Logs and reports
+*.log
+build-report.md
+
+# OS and editor files
+.DS_Store
+.vscode/
+*~
