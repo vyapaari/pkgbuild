@@ -62,15 +62,15 @@ jobs:
         tar -xf zig-source.tar.xz
         mv zig-0.15.1 zig-source
 
-    - name: Prepare build environment
-      shell: bash
-      run: |
-        echo "Preparing build environment..."
-        cd zig-source
-        
-        # Create config files that might be missing
-        mkdir -p stage1
-        cat > stage1/config.h.in << 'EOF'
+   - name: Prepare build environment
+  shell: bash
+  run: |
+    echo "Preparing build environment..."
+    cd zig-source
+    
+    # Create config files that might be missing
+    mkdir -p stage1
+    cat > stage1/config.h.in << 'EOF'
 #pragma once
 #define ZIG_VERSION_STRING "0.15.1"
 #define ZIG_VERSION_MAJOR 0
@@ -78,7 +78,7 @@ jobs:
 #define ZIG_VERSION_PATCH 1
 EOF
 
-        cat > stage1/config.zig.in << 'EOF'
+    cat > stage1/config.zig.in << 'EOF'
 pub const version_string = "0.15.1";
 pub const version_major = 0;
 pub const version_minor = 15;
