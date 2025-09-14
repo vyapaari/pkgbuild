@@ -333,10 +333,15 @@ jobs:
 
       - name: Create build report
         if: always()
+        shell: bash
         run: |
           echo "# Zig Mingw-w64 Build Report" > build-report.md
           echo "" >> build-report.md
-          echo "**Status:** $([ '${{ job.status }}' = 'success' ] && echo '✅ Success' || echo '❌ Failed')" >> build-report.md
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "**Status:** ✅ Success" >> build-report.md
+          else
+            echo "**Status:** ❌ Failed" >> build-report.md
+          fi
           echo "**Version:** ${ZIG_VERSION}" >> build-report.md
           echo "**Build Jobs:** ${BUILD_JOBS}" >> build-report.md
           echo "**Build Time:** $(date)" >> build-report.md
@@ -345,7 +350,11 @@ jobs:
           
           if [ "${{ job.status }}" = "success" ]; then
             echo "**Package:** mingw-w64-x86_64-zig-${ZIG_VERSION}-1-any.pkg.tar.zst" >> build-report.md
-            echo "**Size:** $(du -h zig-source/mingw-w64-x86_64-zig-${ZIG_VERSION}-1-any.pkg.tar.zst 2>/dev/null | cut -f1 || echo 'Unknown')" >> build-report.md
+            if [ -f "zig-source/mingw-w64-x86_64-zig-${ZIG_VERSION}-1-any.pkg.tar.zst" ]; then
+              echo "**Size:** $(du -h zig-source/mingw-w64-x86_64-zig-${ZIG_VERSION}-1-any.pkg.tar.zst | cut -f1)" >> build-report.md
+            else
+              echo "**Size:** Unknown" >> build-report.md
+            fi
             echo "**Compiler Path:** zig-source/build/stage3/bin/zig.exe" >> build-report.md
           else
             echo "**Error:** Build failed - check logs for details" >> build-report.md
