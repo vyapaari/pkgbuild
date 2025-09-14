@@ -126,9 +126,30 @@ jobs:
         run: |
           set -euo pipefail
           echo "Starting CMake build (Stage 1)..."
-          cd zig-source/build
+          
+          # Debug: Check if tools are available
+          echo "Checking build tools..."
+          which cmake || echo "cmake not found"
+          which ninja || echo "ninja not found"
+          which gcc || echo "gcc not found"
+          
+          # Check if source directory exists
+          if [ ! -d "zig-source" ]; then
+            echo "Error: zig-source directory not found"
+            ls -la
+            exit 1
+          fi
+          
+          cd zig-source
+          echo "Current directory: $(pwd)"
+          ls -la
+          
+          # Create and enter build directory
+          mkdir -p build
+          cd build
           
           # Configure with CMake
+          echo "Configuring with CMake..."
           MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
           cmake .. -GNinja \
             -DCMAKE_BUILD_TYPE=Release \
@@ -140,8 +161,10 @@ jobs:
             -DZIG_OPTIMIZE="ReleaseSafe" \
             -DZIG_STATIC_ZLIB=OFF \
             -DZIG_STATIC_ZSTD=OFF 2>&1 | tee cmake-configure.log
+          
           echo "Building with limited parallelism for memory management..."
           ninja -j"$BUILD_JOBS" -l"$BUILD_JOBS" 2>&1 | tee cmake-build.log
+          
           # Verify zig2 was built
           if [ -f "zig2.exe" ]; then
             echo "✓ zig2.exe built successfully"
