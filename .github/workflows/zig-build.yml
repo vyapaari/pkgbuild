@@ -122,7 +122,7 @@ jobs:
         pub const optimize = "ReleaseSafe";
         EOF
 
-        - name: Build Zig (Stage 1 - CMake)
+    - name: Build Zig (Stage 1 - CMake)
       shell: bash
       run: |
         set -euo pipefail
