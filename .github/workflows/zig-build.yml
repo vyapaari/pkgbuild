@@ -248,8 +248,8 @@ jobs:
           
           # Simple compile test
           echo 'const std = @import("std");
-pub fn main() void {
-    std.debug.print("Hello, Zig!\n", .{});}' > test.zig
+          pub fn main() void {
+          std.debug.print("Hello, Zig!\n", .{});}' > test.zig
           
           ./stage3/bin/zig.exe build-exe test.zig
           ./test.exe
