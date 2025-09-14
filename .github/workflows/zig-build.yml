@@ -133,6 +133,12 @@ jobs:
           which ninja || echo "ninja not found"
           which gcc || echo "gcc not found"
           
+          # Check versions
+          echo "Tool versions:"
+          cmake --version || echo "cmake version check failed"
+          ninja --version || echo "ninja version check failed"
+          gcc --version | head -1 || echo "gcc version check failed"
+          
           # Check if source directory exists
           if [ ! -d "zig-source" ]; then
             echo "Error: zig-source directory not found"
@@ -148,7 +154,12 @@ jobs:
           mkdir -p build
           cd build
           
-          # Configure with CMake
+          # Check LLVM installation
+          echo "Checking LLVM installation..."
+          pkg-config --exists llvm || echo "LLVM pkg-config not found"
+          pkg-config --modversion llvm || echo "LLVM version not available"
+          
+          # Configure with CMake - run without tee first to see immediate errors
           echo "Configuring with CMake..."
           MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
           cmake .. -GNinja \
@@ -160,7 +171,21 @@ jobs:
             -DZIG_TARGET="x86_64-windows-gnu" \
             -DZIG_OPTIMIZE="ReleaseSafe" \
             -DZIG_STATIC_ZLIB=OFF \
-            -DZIG_STATIC_ZSTD=OFF 2>&1 | tee cmake-configure.log
+            -DZIG_STATIC_ZSTD=OFF
+          
+          # If cmake succeeded, save output to log and continue
+          echo "CMake configuration completed, saving log..."
+          MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+          cmake .. -GNinja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="$MINGW_PREFIX" \
+            -DZIG_SHARED_LLVM=ON \
+            -DZIG_USE_LLD=ON \
+            -DZIG_VERSION="$ZIG_VERSION" \
+            -DZIG_TARGET="x86_64-windows-gnu" \
+            -DZIG_OPTIMIZE="ReleaseSafe" \
+            -DZIG_STATIC_ZLIB=OFF \
+            -DZIG_STATIC_ZSTD=OFF > cmake-configure.log 2>&1
           
           echo "Building with limited parallelism for memory management..."
           ninja -j"$BUILD_JOBS" -l"$BUILD_JOBS" 2>&1 | tee cmake-build.log
