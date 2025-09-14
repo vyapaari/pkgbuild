@@ -29,6 +29,8 @@ jobs:
 
       - name: Setup Git for Windows SDK
         uses: git-for-windows/setup-git-for-windows-sdk@v1
+        with:
+          flavor: makepkg-git
 
       - name: Install build dependencies
         shell: bash
@@ -80,33 +82,33 @@ jobs:
           
           # Create config files that might be missing
           mkdir -p ../stage1
-          cat > ../stage1/config.h.in << 'EOF'
-          #pragma once
-          #define ZIG_VERSION_STRING "${ZIG_VERSION}"
-          #define ZIG_VERSION_MAJOR 0
-          #define ZIG_VERSION_MINOR 15
-          #define ZIG_VERSION_PATCH 1
-          EOF
+          cat > ../stage1/config.h.in << EOF
+#pragma once
+#define ZIG_VERSION_STRING "$ZIG_VERSION"
+#define ZIG_VERSION_MAJOR 0
+#define ZIG_VERSION_MINOR 15
+#define ZIG_VERSION_PATCH 1
+EOF
 
-          cat > ../stage1/config.zig.in << 'EOF'
-          pub const version_string = "${ZIG_VERSION}";
-          pub const version_major = 0;
-          pub const version_minor = 15;
-          pub const version_patch = 1;
-          EOF
+          cat > ../stage1/config.zig.in << EOF
+pub const version_string = "$ZIG_VERSION";
+pub const version_major = 0;
+pub const version_minor = 15;
+pub const version_patch = 1;
+EOF
 
           # Create config for self-hosted build
-          cat > config.zig << 'EOF'
-          pub const version_string = "${ZIG_VERSION}";
-          pub const version_major = 0;
-          pub const version_minor = 15;
-          pub const version_patch = 1;
-          pub const enable_llvm = true;
-          pub const enable_zlib = true;
-          pub const enable_zstd = true;
-          pub const target = "x86_64-windows-gnu";
-          pub const optimize = "ReleaseSafe";
-          EOF
+          cat > config.zig << EOF
+pub const version_string = "$ZIG_VERSION";
+pub const version_major = 0;
+pub const version_minor = 15;
+pub const version_patch = 1;
+pub const enable_llvm = true;
+pub const enable_zlib = true;
+pub const enable_zstd = true;
+pub const target = "x86_64-windows-gnu";
+pub const optimize = "ReleaseSafe";
+EOF
 
       - name: Build Zig (Stage 1 - CMake)
         shell: bash
@@ -119,16 +121,16 @@ jobs:
           MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
           cmake .. -GNinja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
+            -DCMAKE_INSTALL_PREFIX="$MINGW_PREFIX" \
             -DZIG_SHARED_LLVM=ON \
             -DZIG_USE_LLD=ON \
-            -DZIG_VERSION="${ZIG_VERSION}" \
+            -DZIG_VERSION="$ZIG_VERSION" \
             -DZIG_TARGET="x86_64-windows-gnu" \
             -DZIG_OPTIMIZE="ReleaseSafe" \
             -DZIG_STATIC_ZLIB=OFF \
             -DZIG_STATIC_ZSTD=OFF 2>&1 | tee cmake-configure.log
           echo "Building with limited parallelism for memory management..."
-          ninja -j"${BUILD_JOBS}" -l"${BUILD_JOBS}" 2>&1 | tee cmake-build.log
+          ninja -j"$BUILD_JOBS" -l"$BUILD_JOBS" 2>&1 | tee cmake-build.log
           # Verify zig2 was built
           if [ -f "zig2.exe" ]; then
             echo "✓ zig2.exe built successfully"
@@ -140,7 +142,7 @@ jobs:
           fi
 
       - name: Build Zig (Stage 2 - Self-hosted compiler)
-        shell: C:\git-sdk-64\git-bash.exe -l -c "cd /d/a/*/*/; {0}"
+        shell: bash
         run: |
           set -euo pipefail
           echo "Building self-hosted compiler with zig2 (Stage 2)..."
@@ -170,7 +172,7 @@ jobs:
           fi
 
       - name: Build Zig (Stage 3 - Final optimized compiler)
-        shell: C:\git-sdk-64\git-bash.exe -l -c "cd /d/a/*/*/; {0}"
+        shell: bash
         run: |
           set -euo pipefail
           echo "Building final stage3 compiler..."
@@ -180,7 +182,7 @@ jobs:
             ./minizig.exe build \
               --prefix stage3 \
               --zig-lib-dir ../lib \
-              -Dversion-string="${ZIG_VERSION}" \
+              -Dversion-string="$ZIG_VERSION" \
               -Dtarget=x86_64-windows-gnu \
               -Doptimize=ReleaseSafe \
               --verbose 2>&1 | tee stage3-build.log
@@ -198,7 +200,7 @@ jobs:
           fi
 
       - name: Test the built compiler
-        shell: C:\git-sdk-64\git-bash.exe -l -c "cd /d/a/*/*/; {0}"
+        shell: bash
         run: |
           set -euo pipefail
           echo "Testing the built compiler..."
@@ -211,9 +213,9 @@ jobs:
             
             # Simple compile test
             echo 'const std = @import("std");
-          pub fn main() void {
-              std.debug.print("Hello, Zig!\n", .{});
-          }' > test.zig
+pub fn main() void {
+    std.debug.print("Hello, Zig!\n", .{});
+}' > test.zig
             
             ./stage3/bin/zig.exe build-exe test.zig
             ./test.exe
@@ -225,68 +227,68 @@ jobs:
           fi
 
       - name: Create package structure
-        shell: C:\git-sdk-64\git-bash.exe -l -c "cd /d/a/*/*/; {0}"
+        shell: bash
         run: |
           set -euo pipefail
           echo "Creating mingw-w64 package structure..."
           cd zig-source/build
           
           # Create package directory structure
-          mkdir -p "pkg/${MINGW_PREFIX}"/{bin,lib,share/licenses/zig}
+          mkdir -p "pkg/$MINGW_PREFIX"/{bin,lib,share/licenses/zig}
           
           # Install final compiler binary
-          install -Dm755 stage3/bin/zig.exe "pkg/${MINGW_PREFIX}/bin/zig.exe"
+          install -Dm755 stage3/bin/zig.exe "pkg/$MINGW_PREFIX/bin/zig.exe"
           
           # Install standard library (critical for Zig to function)
-          cp -r ../lib "pkg/${MINGW_PREFIX}/lib/zig"
+          cp -r ../lib "pkg/$MINGW_PREFIX/lib/zig"
           
           # Install license
-          install -Dm644 ../LICENSE "pkg/${MINGW_PREFIX}/share/licenses/zig/LICENSE"
+          install -Dm644 ../LICENSE "pkg/$MINGW_PREFIX/share/licenses/zig/LICENSE"
           
           # Create package metadata for mingw-w64
           mkdir -p pkg/.MTREE
-          cat > pkg/.MTREE/package << 'EOF'
-          #mtree
-          ./usr time=$(date +%s)
-          ./usr/bin time=$(date +%s)
-          ./usr/bin/zig.exe time=$(date +%s) mode=755
-          ./usr/lib time=$(date +%s)
-          ./usr/lib/zig time=$(date +%s)
-          ./usr/share time=$(date +%s)
-          ./usr/share/licenses time=$(date +%s)
-          ./usr/share/licenses/zig time=$(date +%s)
-          ./usr/share/licenses/zig/LICENSE time=$(date +%s) mode=644
-          EOF
+          cat > pkg/.MTREE/package << EOF
+#mtree
+./usr time=$(date +%s)
+./usr/bin time=$(date +%s)
+./usr/bin/zig.exe time=$(date +%s) mode=755
+./usr/lib time=$(date +%s)
+./usr/lib/zig time=$(date +%s)
+./usr/share time=$(date +%s)
+./usr/share/licenses time=$(date +%s)
+./usr/share/licenses/zig time=$(date +%s)
+./usr/share/licenses/zig/LICENSE time=$(date +%s) mode=644
+EOF
 
       - name: Create package archive
-        shell: C:\git-sdk-64\git-bash.exe -l -c "cd /d/a/*/*/; {0}"
+        shell: bash
         run: |
           set -euo pipefail
           echo "Creating mingw-w64 package archive..."
           cd zig-source/build/pkg
           
           # Create package using mingw-w64 naming convention
-          tar -cf - .MTREE * | zstd -z -19 - > "../../mingw-w64-x86_64-zig-${ZIG_VERSION}-1-any.pkg.tar.zst"
+          tar -cf - .MTREE * | zstd -z -19 - > "../../mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.zst"
           cd ../..
           
           # Verify package was created
-          if [ -f "mingw-w64-x86_64-zig-${ZIG_VERSION}-1-any.pkg.tar.zst" ]; then
+          if [ -f "mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.zst" ]; then
             echo "✓ Package created successfully"
-            ls -la "mingw-w64-x86_64-zig-${ZIG_VERSION}-1-any.pkg.tar.zst"
+            ls -la "mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.zst"
           else
             echo "✗ Package creation failed"
             exit 1
           fi
 
       - name: Test package installation
-        shell: C:\git-sdk-64\git-bash.exe -l -c "cd \"$GITHUB_WORKSPACE\" && {0}"
+        shell: bash
         run: |
           set -euo pipefail
           echo "Testing package installation..."
           cd zig-source
           
           # Install the package
-          pacman -U --noconfirm "mingw-w64-x86_64-zig-${ZIG_VERSION}-1-any.pkg.tar.zst"
+          pacman -U --noconfirm "mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.zst"
           
           # Test installed compiler
           zig version
@@ -294,9 +296,9 @@ jobs:
           
           # Test compilation with installed version
           echo 'const std = @import("std");
-          pub fn main() void {
-              std.debug.print("Package test successful!\n", .{});
-          }' > package_test.zig
+pub fn main() void {
+    std.debug.print("Package test successful!\n", .{});
+}' > package_test.zig
           
           zig build-exe package_test.zig
           ./package_test.exe
@@ -342,16 +344,16 @@ jobs:
           else
             echo "**Status:** ❌ Failed" >> build-report.md
           fi
-          echo "**Version:** ${ZIG_VERSION}" >> build-report.md
-          echo "**Build Jobs:** ${BUILD_JOBS}" >> build-report.md
+          echo "**Version:** $ZIG_VERSION" >> build-report.md
+          echo "**Build Jobs:** $BUILD_JOBS" >> build-report.md
           echo "**Build Time:** $(date)" >> build-report.md
           echo "**Workflow Run:** ${{ github.run_id }}" >> build-report.md
           echo "" >> build-report.md
           
           if [ "${{ job.status }}" = "success" ]; then
-            echo "**Package:** mingw-w64-x86_64-zig-${ZIG_VERSION}-1-any.pkg.tar.zst" >> build-report.md
-            if [ -f "zig-source/mingw-w64-x86_64-zig-${ZIG_VERSION}-1-any.pkg.tar.zst" ]; then
-              echo "**Size:** $(du -h zig-source/mingw-w64-x86_64-zig-${ZIG_VERSION}-1-any.pkg.tar.zst | cut -f1)" >> build-report.md
+            echo "**Package:** mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.zst" >> build-report.md
+            if [ -f "zig-source/mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.zst" ]; then
+              echo "**Size:** $(du -h zig-source/mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.zst | cut -f1)" >> build-report.md
             else
               echo "**Size:** Unknown" >> build-report.md
             fi
