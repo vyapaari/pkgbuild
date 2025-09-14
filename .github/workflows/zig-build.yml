@@ -63,7 +63,6 @@ jobs:
             echo "Using local source file: $source_url"
             cp "$source_url" zig-source.tar.xz
           fi
-
           # Extract source
           tar -xf zig-source.tar.xz
           mv "zig-${ZIG_VERSION}" zig-source
@@ -81,33 +80,33 @@ jobs:
           
           # Create config files that might be missing
           mkdir -p ../stage1
-          cat > ../stage1/config.h.in << EOF
-#pragma once
-#define ZIG_VERSION_STRING "${ZIG_VERSION}"
-#define ZIG_VERSION_MAJOR 0
-#define ZIG_VERSION_MINOR 15
-#define ZIG_VERSION_PATCH 1
-EOF
+          cat > ../stage1/config.h.in << 'EOF'
+          #pragma once
+          #define ZIG_VERSION_STRING "${ZIG_VERSION}"
+          #define ZIG_VERSION_MAJOR 0
+          #define ZIG_VERSION_MINOR 15
+          #define ZIG_VERSION_PATCH 1
+          EOF
 
-          cat > ../stage1/config.zig.in << EOF
-pub const version_string = "${ZIG_VERSION}";
-pub const version_major = 0;
-pub const version_minor = 15;
-pub const version_patch = 1;
-EOF
+          cat > ../stage1/config.zig.in << 'EOF'
+          pub const version_string = "${ZIG_VERSION}";
+          pub const version_major = 0;
+          pub const version_minor = 15;
+          pub const version_patch = 1;
+          EOF
 
           # Create config for self-hosted build
-          cat > config.zig << EOF
-pub const version_string = "${ZIG_VERSION}";
-pub const version_major = 0;
-pub const version_minor = 15;
-pub const version_patch = 1;
-pub const enable_llvm = true;
-pub const enable_zlib = true;
-pub const enable_zstd = true;
-pub const target = "x86_64-windows-gnu";
-pub const optimize = "ReleaseSafe";
-EOF
+          cat > config.zig << 'EOF'
+          pub const version_string = "${ZIG_VERSION}";
+          pub const version_major = 0;
+          pub const version_minor = 15;
+          pub const version_patch = 1;
+          pub const enable_llvm = true;
+          pub const enable_zlib = true;
+          pub const enable_zstd = true;
+          pub const target = "x86_64-windows-gnu";
+          pub const optimize = "ReleaseSafe";
+          EOF
 
       - name: Build Zig (Stage 1 - CMake)
         shell: bash
@@ -128,10 +127,8 @@ EOF
             -DZIG_OPTIMIZE="ReleaseSafe" \
             -DZIG_STATIC_ZLIB=OFF \
             -DZIG_STATIC_ZSTD=OFF 2>&1 | tee cmake-configure.log
-
           echo "Building with limited parallelism for memory management..."
           ninja -j"${BUILD_JOBS}" -l"${BUILD_JOBS}" 2>&1 | tee cmake-build.log
-
           # Verify zig2 was built
           if [ -f "zig2.exe" ]; then
             echo "✓ zig2.exe built successfully"
@@ -154,7 +151,6 @@ EOF
             -femit-bin=minizig.exe \
             -OReleaseSafe \
             -Dbuild_options=config.zig 2>&1 | tee stage2-build.log
-
           if [ -f "minizig.exe" ]; then
             echo "✓ minizig.exe built successfully"
             ./minizig.exe version
@@ -188,7 +184,6 @@ EOF
               -Dtarget=x86_64-windows-gnu \
               -Doptimize=ReleaseSafe \
               --verbose 2>&1 | tee stage3-build.log
-
             if [ -f "stage3/bin/zig.exe" ]; then
               echo "✓ Final Zig compiler built successfully"
               ./stage3/bin/zig.exe version
@@ -216,9 +211,9 @@ EOF
             
             # Simple compile test
             echo 'const std = @import("std");
-pub fn main() void {
-    std.debug.print("Hello, Zig!\n", .{});
-}' > test.zig
+          pub fn main() void {
+              std.debug.print("Hello, Zig!\n", .{});
+          }' > test.zig
             
             ./stage3/bin/zig.exe build-exe test.zig
             ./test.exe
@@ -250,18 +245,18 @@ pub fn main() void {
           
           # Create package metadata for mingw-w64
           mkdir -p pkg/.MTREE
-          cat > pkg/.MTREE/package << EOF
-#mtree
-./usr time=$(date +%s)
-./usr/bin time=$(date +%s)
-./usr/bin/zig.exe time=$(date +%s) mode=755
-./usr/lib time=$(date +%s)
-./usr/lib/zig time=$(date +%s)
-./usr/share time=$(date +%s)
-./usr/share/licenses time=$(date +%s)
-./usr/share/licenses/zig time=$(date +%s)
-./usr/share/licenses/zig/LICENSE time=$(date +%s) mode=644
-EOF
+          cat > pkg/.MTREE/package << 'EOF'
+          #mtree
+          ./usr time=$(date +%s)
+          ./usr/bin time=$(date +%s)
+          ./usr/bin/zig.exe time=$(date +%s) mode=755
+          ./usr/lib time=$(date +%s)
+          ./usr/lib/zig time=$(date +%s)
+          ./usr/share time=$(date +%s)
+          ./usr/share/licenses time=$(date +%s)
+          ./usr/share/licenses/zig time=$(date +%s)
+          ./usr/share/licenses/zig/LICENSE time=$(date +%s) mode=644
+          EOF
 
       - name: Create package archive
         shell: bash
@@ -299,9 +294,9 @@ EOF
           
           # Test compilation with installed version
           echo 'const std = @import("std");
-pub fn main() void {
-    std.debug.print("Package test successful!\n", .{});
-}' > package_test.zig
+          pub fn main() void {
+              std.debug.print("Package test successful!\n", .{});
+          }' > package_test.zig
           
           zig build-exe package_test.zig
           ./package_test.exe
