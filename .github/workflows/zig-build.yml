@@ -36,6 +36,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          echo "Updating pacman database..."
+          pacman -Sy --noconfirm
           echo "Installing Mingw-w64 build dependencies..."
           pacman -S --noconfirm --needed \
             mingw-w64-x86_64-llvm \
