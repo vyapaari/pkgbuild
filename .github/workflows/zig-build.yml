@@ -127,13 +127,13 @@ jobs:
           set -euo pipefail
           echo "Starting CMake build (Stage 1)..."
           
-          # Ensure Git SDK tools are prioritized in PATH
-          export PATH="/mingw64/bin:/usr/bin:/bin:$PATH"
+          # Remove problematic Windows paths from PATH to avoid conflicts
+          export PATH="/mingw64/bin:/usr/bin:/bin"
           
           # Debug: Check environment
           echo "Environment check:"
           echo "MSYSTEM: $MSYSTEM"
-          echo "PATH: $PATH"
+          echo "Cleaned PATH: $PATH"
           
           # Debug: Check if tools are available and working
           echo "Checking build tools..."
@@ -142,15 +142,26 @@ jobs:
           which gcc || echo "gcc not found"
           which pkg-config || echo "pkg-config not found"
           
-          # Check versions - let's see what we actually have
-          echo "Tool versions:"
-          cmake --version 2>&1 || echo "cmake version check failed"
+          # Check what CMake we're actually using
+          echo "CMake details:"
+          ls -la $(which cmake) || echo "cmake not found"
+          file $(which cmake) || echo "cmake file info not available"
+          
+          # Try to get CMake version with more verbose output
+          echo "CMake version attempt:"
+          cmake --version || {
+            echo "CMake version failed, trying with full path:"
+            /mingw64/bin/cmake --version || echo "CMake completely broken"
+          }
+          
+          # Check dependencies that CMake might need
+          echo "Checking CMake dependencies:"
+          ldd /mingw64/bin/cmake.exe || echo "ldd failed"
+          
+          # Check versions for working tools
+          echo "Other tool versions:"
           ninja --version 2>&1 || echo "ninja version check failed"  
           gcc --version 2>&1 | head -1 || echo "gcc version check failed"
-          
-          # Test CMake basic functionality
-          echo "Testing CMake basic functionality..."
-          cmake --help > /dev/null 2>&1 || { echo "CMake is not functional"; exit 1; }
           
           # Check if source directory exists
           if [ ! -d "zig-source" ]; then
@@ -161,24 +172,25 @@ jobs:
           
           cd zig-source
           echo "Current directory: $(pwd)"
-          ls -la
           
           # Create and enter build directory
           mkdir -p build
           cd build
           
-          # Check LLVM installation
-          echo "Checking LLVM installation..."
-          pkg-config --exists llvm 2>/dev/null || echo "LLVM pkg-config not found"
-          pkg-config --modversion llvm 2>/dev/null || echo "LLVM version not available"
+          # Try a simple CMake test first
+          echo "Testing CMake with simple project..."
+          echo "cmake_minimum_required(VERSION 3.15)" > test.cmake
+          echo "project(test)" >> test.cmake
+          cmake -P test.cmake || { 
+            echo "Simple CMake test failed"
+            echo "Trying without any options..."
+            cmake --help > cmake-help.log 2>&1 || echo "CMake help also failed"
+            head -10 cmake-help.log || echo "No help output"
+            exit 1
+          }
           
-          # Find LLVM installation manually in Git SDK
-          echo "LLVM library search:"
-          find /mingw64 -name "*llvm*" -type f 2>/dev/null | head -5 || echo "LLVM files not found in /mingw64"
-          find /usr -name "*llvm*" -type f 2>/dev/null | head -5 || echo "LLVM files not found in /usr"
-          
-          # Configure with CMake
-          echo "Configuring with CMake..."
+          # If simple test works, try the real configuration
+          echo "Simple CMake test passed, attempting real configuration..."
           MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
           cmake .. -GNinja \
             -DCMAKE_BUILD_TYPE=Release \
