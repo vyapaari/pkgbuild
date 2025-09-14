@@ -32,13 +32,39 @@ jobs:
       with:
         flavor: makepkg-git
 
+    - name: Set up SDK environment properly
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "Setting up Git SDK environment..."
+        
+        # Source the SDK's profile to set up the proper environment
+        source /etc/profile
+        
+        # Ensure we're using the SDK's tools, not system ones
+        export PATH="/usr/bin:/mingw64/bin:/bin"
+        export MSYSTEM=MINGW64
+        
+        echo "Using Git from: $(which git)"
+        echo "Using GCC from: $(which gcc)"
+        echo "Using CMake from: $(which cmake)"
+        echo "PATH: $PATH"
+        
+        # Verify we're using the right tools
+        if [[ $(which git) == "/usr/bin/git" ]]; then
+          echo "✓ Using SDK's Git"
+        else
+          echo "✗ Wrong Git version detected"
+          exit 1
+        fi
+
     - name: Install build dependencies
       shell: bash
       run: |
         set -euo pipefail
-        echo "Updating pacman database..."
-        pacman -Sy --noconfirm
         echo "Installing Mingw-w64 build dependencies..."
+        
+        # Use the SDK's pacman
         pacman -S --noconfirm --needed \
           mingw-w64-x86_64-llvm \
           mingw-w64-x86_64-clang \
@@ -48,27 +74,7 @@ jobs:
           mingw-w64-x86_64-cmake \
           mingw-w64-x86_64-ninja \
           mingw-w64-x86_64-gcc \
-          base-devel \
-          git
-
-    - name: Setup environment properly
-      shell: bash
-      run: |
-        set -euo pipefail
-        echo "Setting up proper build environment..."
-        source /etc/profile
-        export PATH="/mingw64/bin:/usr/bin:/bin"
-        export MSYSTEM=MINGW64
-        
-        echo "Final PATH: $PATH"
-        echo "MSYSTEM: $MSYSTEM"
-        
-        # Check if tools exist but don't test execution (may fail due to missing DLLs)
-        echo "Checking tool availability:"
-        command -v cmake && echo "✓ cmake found" || { echo "✗ cmake not found"; exit 1; }
-        command -v ninja && echo "✓ ninja found" || { echo "✗ ninja not found"; exit 1; }
-        command -v gcc && echo "✓ gcc found" || { echo "✗ gcc not found"; exit 1; }
-        command -v git && echo "✓ git found" || { echo "✗ git not found"; exit 1; }
+          base-devel
 
     - name: Download and extract Zig source
       shell: bash
@@ -129,46 +135,59 @@ jobs:
         echo "Starting CMake build (Stage 1)..."
         
         source /etc/profile
-        export PATH="/mingw64/bin:/usr/bin:/bin"
+        export PATH="/usr/bin:/mingw64/bin:/bin"
         export MSYSTEM=MINGW64
         
         cd zig-source/build
         
-        # Check if tools exist
-        command -v cmake || exit 1
-        command -v ninja || exit 1
+        echo "Testing CMake execution..."
+        if /mingw64/bin/cmake --version >/dev/null 2>&1; then
+          echo "✓ CMake can execute properly"
+        else
+          echo "✗ CMake found but cannot execute - checking dependencies..."
+          pacman -S --noconfirm --needed mingw-w64-x86_64-gcc-libs || echo "GCC libs install may have failed"
+          pacman -S --noconfirm --needed mingw-w64-x86_64-winpthreads || echo "Winpthreads install may have failed"
+          
+          if /mingw64/bin/cmake --version >/dev/null 2>&1; then
+            echo "✓ CMake now works after dependency install"
+          else
+            echo "✗ CMake still cannot execute - trying alternative approach"
+          fi
+        fi
         
         echo "Current directory: $(pwd)"
-        echo "Contents:"
+        echo "Contents of parent directory:"
         ls -la ../
         
-        # Try CMake configuration with simpler options first
         echo "Attempting CMake configuration..."
         MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-        cmake .. -GNinja \
+        /mingw64/bin/cmake .. -GNinja \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_INSTALL_PREFIX="$MINGW_PREFIX" \
           -DZIG_SHARED_LLVM=ON \
-          -DZIG_USE_LLD=ON \
-          -DZIG_VERSION="$ZIG_VERSION" \
-          -DZIG_TARGET="x86_64-windows-gnu" \
-          -DZIG_OPTIMIZE="ReleaseSafe" 2>&1 | tee cmake-configure.log
+          -DZIG_USE_LLD=ON 2>&1 | tee cmake-configure.log
         
-        # Check if CMake succeeded
         if [ $? -eq 0 ]; then
           echo "✓ CMake configuration successful"
-          ninja -j"$BUILD_JOBS" -l"$BUILD_JOBS" 2>&1 | tee cmake-build.log || exit 1
+          /mingw64/bin/ninja -j"$BUILD_JOBS" -l"$BUILD_JOBS" 2>&1 | tee cmake-build.log || exit 1
         else
-          echo "✗ CMake configuration failed, trying with minimal options..."
-          # Try with minimal options
-          MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-          cmake .. -GNinja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_INSTALL_PREFIX="$MINGW_PREFIX" \
-            -DZIG_SHARED_LLVM=ON 2>&1 | tee cmake-configure-minimal.log || exit 1
+          echo "✗ CMake configuration failed, checking log..."
+          cat cmake-configure.log | tail -20
+          echo "Trying even simpler configuration..."
           
-          echo "✓ CMake configuration with minimal options successful"
-          ninja -j"$BUILD_JOBS" -l"$BUILD_JOBS" 2>&1 | tee cmake-build.log || exit 1
+          MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+          /mingw64/bin/cmake .. -GNinja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="$MINGW_PREFIX" 2>&1 | tee cmake-configure-minimal.log
+            
+          if [ $? -eq 0 ]; then
+            echo "✓ Minimal CMake configuration successful"
+            /mingw64/bin/ninja -j"$BUILD_JOBS" -l"$BUILD_JOBS" 2>&1 | tee cmake-build.log || exit 1
+          else
+            echo "✗ Even minimal CMake configuration failed"
+            cat cmake-configure-minimal.log | tail -20
+            exit 1
+          fi
         fi
         
         if [ -f "zig2.exe" ]; then
@@ -186,7 +205,6 @@ jobs:
         echo "Building self-hosted compiler with zig2 (Stage 2)..."
         cd zig-source/build
         
-        # Try to run zig2 - if it fails due to DLL issues, we'll continue anyway
         ./zig2.exe build-exe ../src/main.zig \
           -femit-bin=minizig.exe \
           -OReleaseSafe \
@@ -244,7 +262,6 @@ jobs:
         
         if [ -f "stage3/bin/zig.exe" ]; then
           echo "✓ Compiler found at stage3/bin/zig.exe"
-          # Don't test execution to avoid DLL issues
         else
           echo "✗ No compiler found for testing"
           exit 1
