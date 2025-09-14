@@ -127,17 +127,30 @@ jobs:
           set -euo pipefail
           echo "Starting CMake build (Stage 1)..."
           
-          # Debug: Check if tools are available
+          # Ensure Git SDK tools are prioritized in PATH
+          export PATH="/mingw64/bin:/usr/bin:/bin:$PATH"
+          
+          # Debug: Check environment
+          echo "Environment check:"
+          echo "MSYSTEM: $MSYSTEM"
+          echo "PATH: $PATH"
+          
+          # Debug: Check if tools are available and working
           echo "Checking build tools..."
           which cmake || echo "cmake not found"
           which ninja || echo "ninja not found"
           which gcc || echo "gcc not found"
+          which pkg-config || echo "pkg-config not found"
           
-          # Check versions
+          # Check versions - let's see what we actually have
           echo "Tool versions:"
-          cmake --version || echo "cmake version check failed"
-          ninja --version || echo "ninja version check failed"
-          gcc --version | head -1 || echo "gcc version check failed"
+          cmake --version 2>&1 || echo "cmake version check failed"
+          ninja --version 2>&1 || echo "ninja version check failed"  
+          gcc --version 2>&1 | head -1 || echo "gcc version check failed"
+          
+          # Test CMake basic functionality
+          echo "Testing CMake basic functionality..."
+          cmake --help > /dev/null 2>&1 || { echo "CMake is not functional"; exit 1; }
           
           # Check if source directory exists
           if [ ! -d "zig-source" ]; then
@@ -156,10 +169,15 @@ jobs:
           
           # Check LLVM installation
           echo "Checking LLVM installation..."
-          pkg-config --exists llvm || echo "LLVM pkg-config not found"
-          pkg-config --modversion llvm || echo "LLVM version not available"
+          pkg-config --exists llvm 2>/dev/null || echo "LLVM pkg-config not found"
+          pkg-config --modversion llvm 2>/dev/null || echo "LLVM version not available"
           
-          # Configure with CMake - run without tee first to see immediate errors
+          # Find LLVM installation manually in Git SDK
+          echo "LLVM library search:"
+          find /mingw64 -name "*llvm*" -type f 2>/dev/null | head -5 || echo "LLVM files not found in /mingw64"
+          find /usr -name "*llvm*" -type f 2>/dev/null | head -5 || echo "LLVM files not found in /usr"
+          
+          # Configure with CMake
           echo "Configuring with CMake..."
           MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
           cmake .. -GNinja \
@@ -171,21 +189,7 @@ jobs:
             -DZIG_TARGET="x86_64-windows-gnu" \
             -DZIG_OPTIMIZE="ReleaseSafe" \
             -DZIG_STATIC_ZLIB=OFF \
-            -DZIG_STATIC_ZSTD=OFF
-          
-          # If cmake succeeded, save output to log and continue
-          echo "CMake configuration completed, saving log..."
-          MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-          cmake .. -GNinja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_INSTALL_PREFIX="$MINGW_PREFIX" \
-            -DZIG_SHARED_LLVM=ON \
-            -DZIG_USE_LLD=ON \
-            -DZIG_VERSION="$ZIG_VERSION" \
-            -DZIG_TARGET="x86_64-windows-gnu" \
-            -DZIG_OPTIMIZE="ReleaseSafe" \
-            -DZIG_STATIC_ZLIB=OFF \
-            -DZIG_STATIC_ZSTD=OFF > cmake-configure.log 2>&1
+            -DZIG_STATIC_ZSTD=OFF 2>&1 | tee cmake-configure.log
           
           echo "Building with limited parallelism for memory management..."
           ninja -j"$BUILD_JOBS" -l"$BUILD_JOBS" 2>&1 | tee cmake-build.log
