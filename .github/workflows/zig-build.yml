@@ -127,30 +127,42 @@ jobs:
           set -euo pipefail
           echo "Starting CMake build (Stage 1)..."
           
-          # Set up proper PATH for MSYS2 environment
-          export PATH="/mingw64/bin:/usr/bin:/bin"
-          export PKG_CONFIG_PATH="/mingw64/lib/pkgconfig:/mingw64/share/pkgconfig"
-          export CPPFLAGS="-I/mingw64/include"
-          export LDFLAGS="-L/mingw64/lib"
+          # Ensure we're using MINGW64 environment with proper PATH
+          export MSYSTEM=MINGW64
+          source /etc/profile
           
-          # Debug: Check environment
-          echo "Environment check:"
+          # Debug: Check environment after sourcing profile
+          echo "Environment check after profile setup:"
           echo "MSYSTEM: $MSYSTEM"
           echo "PATH: $PATH"
+          echo "Which tar: $(which tar 2>/dev/null || echo 'tar not found')"
+          echo "Which cmake: $(which cmake 2>/dev/null || echo 'cmake not found')"
           
-          # Debug: Check if tools are available and working
-          echo "Checking build tools..."
-          command -v cmake || echo "cmake not found in PATH"
-          command -v ninja || echo "ninja not found in PATH" 
-          command -v gcc || echo "gcc not found in PATH"
-          command -v pkg-config || echo "pkg-config not found in PATH"
+          # Try to run tools and check if they work
+          echo "Tool functionality test:"
+          tar --version 2>/dev/null | head -1 || echo "tar not functional"
+          cmake --version 2>/dev/null | head -1 || echo "cmake not functional"
+          ninja --version 2>/dev/null | head -1 || echo "ninja not functional"
+          gcc --version 2>/dev/null | head -1 || echo "gcc not functional"
+          pkg-config --version 2>/dev/null | head -1 || echo "pkg-config not functional"
           
-          # Check versions for working tools
-          echo "Tool versions:"
-          cmake --version 2>&1 || echo "cmake version check failed"
-          ninja --version 2>&1 || echo "ninja version check failed"  
-          gcc --version 2>&1 | head -1 || echo "gcc version check failed"
-          pkg-config --version 2>&1 || echo "pkg-config version check failed"
+          # If tools still aren't working, manually fix PATH
+          if ! cmake --version >/dev/null 2>&1; then
+            echo "Tools not working, manually setting up PATH..."
+            export PATH="/mingw64/bin:/usr/bin:/bin:$PATH"
+            export PKG_CONFIG_PATH="/mingw64/lib/pkgconfig:/mingw64/share/pkgconfig"
+            export CPPFLAGS="-I/mingw64/include"
+            export LDFLAGS="-L/mingw64/lib"
+            
+            echo "After manual PATH setup:"
+            echo "PATH: $PATH"
+            cmake --version || {
+              echo "CMake still not working. Checking installation:"
+              find /mingw64 -name "cmake*" -type f | head -10
+              pacman -Qs cmake
+              exit 1
+            }
+          fi
           
           # Check if source directory exists
           if [ ! -d "zig-source" ]; then
@@ -165,14 +177,6 @@ jobs:
           # Create and enter build directory
           mkdir -p build
           cd build
-          
-          # Verify CMake is functional before proceeding
-          if ! cmake --version >/dev/null 2>&1; then
-            echo "Error: CMake is not functional"
-            echo "Available executables in /mingw64/bin:"
-            ls -la /mingw64/bin/cmake* || echo "No cmake files found"
-            exit 1
-          fi
           
           # Configure with CMake
           echo "Configuring with CMake..."
@@ -299,43 +303,89 @@ jobs:
           fi
 
       - name: Create package structure
-        shell: bash
+        shell: cmd
         run: |
+          C:/git-sdk-64/msys2_shell.cmd -defterm -here -no-start -mingw64 -c "
           set -euo pipefail
-          echo "Creating mingw-w64 package structure..."
+          echo 'Creating mingw-w64 package structure...'
           cd zig-source/build
           
           # Create package directory structure
-          mkdir -p "pkg$MINGW_PREFIX"/{bin,lib,share/licenses/zig}
+          mkdir -p \"pkg\$MINGW_PREFIX\"/{bin,lib,share/licenses/zig}
           
           # Install final compiler binary
-          install -Dm755 stage3/bin/zig.exe "pkg$MINGW_PREFIX/bin/zig.exe"
+          install -Dm755 stage3/bin/zig.exe \"pkg\$MINGW_PREFIX/bin/zig.exe\"
           
           # Install standard library (critical for Zig to function)
-          cp -r ../lib "pkg$MINGW_PREFIX/lib/zig"
+          cp -r ../lib \"pkg\$MINGW_PREFIX/lib/zig\"
           
           # Install license
-          install -Dm644 ../LICENSE "pkg$MINGW_PREFIX/share/licenses/zig/LICENSE"
+          install -Dm644 ../LICENSE \"pkg\$MINGW_PREFIX/share/licenses/zig/LICENSE\"
           
           # Create package metadata for mingw-w64
           mkdir -p pkg/.MTREE
           cat > pkg/.MTREE/package << EOF
           #mtree
-          ./usr time=$(date +%s)
-          ./usr/bin time=$(date +%s)
-          ./usr/bin/zig.exe time=$(date +%s) mode=755
-          ./usr/lib time=$(date +%s)
-          ./usr/lib/zig time=$(date +%s)
-          ./usr/share time=$(date +%s)
-          ./usr/share/licenses time=$(date +%s)
-          ./usr/share/licenses/zig time=$(date +%s)
-          ./usr/share/licenses/zig/LICENSE time=$(date +%s) mode=644
+          ./usr time=\$(date +%s)
+          ./usr/bin time=\$(date +%s)
+          ./usr/bin/zig.exe time=\$(date +%s) mode=755
+          ./usr/lib time=\$(date +%s)
+          ./usr/lib/zig time=\$(date +%s)
+          ./usr/share time=\$(date +%s)
+          ./usr/share/licenses time=\$(date +%s)
+          ./usr/share/licenses/zig time=\$(date +%s)
+          ./usr/share/licenses/zig/LICENSE time=\$(date +%s) mode=644
           EOF
+          "
 
       - name: Create package archive
-        shell: bash
+        shell: cmd
         run: |
+          C:/git-sdk-64/msys2_shell.cmd -defterm -here -no-start -mingw64 -c "
           set -euo pipefail
+          echo 'Creating mingw-w64 package archive...'
+          cd zig-source/build/pkg
+          
+          # Create package using mingw-w64 naming convention
+          tar -cf - .MTREE * | zstd -z -19 - > \"../../mingw-w64-x86_64-zig-\$ZIG_VERSION-1-any.pkg.tar.zst\"
+          cd ../..
+          
+          # Verify package was created
+          if [ -f \"mingw-w64-x86_64-zig-\$ZIG_VERSION-1-any.pkg.tar.zst\" ]; then
+            echo '✓ Package created successfully'
+            ls -la \"mingw-w64-x86_64-zig-\$ZIG_VERSION-1-any.pkg.tar.zst\"
+          else
+            echo '✗ Package creation failed'
+            exit 1
+          fi
+          "
+
+      - name: Test package installation
+        shell: cmd
+        run: |
+          C:/git-sdk-64/msys2_shell.cmd -defterm -here -no-start -mingw64 -c "
+          set -euo pipefail
+          echo 'Testing package installation...'
+          cd zig-source
+          
+          # Install the package
+          pacman -U --noconfirm \"mingw-w64-x86_64-zig-\$ZIG_VERSION-1-any.pkg.tar.zst\"
+          
+          # Test installed compiler
+          zig version
+          zig targets
+          
+          # Test compilation with installed version
+          echo 'const std = @import(\"std\");
+          pub fn main() void {
+              std.debug.print(\"Package test successful!\n\", .{});
+          }' > package_test.zig
+          
+          zig build-exe package_test.zig
+          ./package_test.exe
+          
+          echo '✓ Package installation and testing completed successfully'
+          "ail
           echo "Creating mingw-w64 package archive..."
           cd zig-source/build/pkg
           
@@ -407,32 +457,34 @@ jobs:
 
       - name: Create build report
         if: always()
-        shell: bash
+        shell: cmd
         run: |
-          echo "# Zig Mingw-w64 Build Report" > build-report.md
-          echo "" >> build-report.md
-          if [ "${{ job.status }}" = "success" ]; then
-            echo "**Status:** ✅ Success" >> build-report.md
+          C:/git-sdk-64/msys2_shell.cmd -defterm -here -no-start -mingw64 -c "
+          echo '# Zig Mingw-w64 Build Report' > build-report.md
+          echo '' >> build-report.md
+          if [ '\${{ job.status }}' = 'success' ]; then
+            echo '**Status:** ✅ Success' >> build-report.md
           else
-            echo "**Status:** ❌ Failed" >> build-report.md
+            echo '**Status:** ❌ Failed' >> build-report.md
           fi
-          echo "**Version:** $ZIG_VERSION" >> build-report.md
-          echo "**Build Jobs:** $BUILD_JOBS" >> build-report.md
-          echo "**Build Time:** $(date)" >> build-report.md
-          echo "**Workflow Run:** ${{ github.run_id }}" >> build-report.md
-          echo "" >> build-report.md
+          echo '**Version:** \$ZIG_VERSION' >> build-report.md
+          echo '**Build Jobs:** \$BUILD_JOBS' >> build-report.md
+          echo '**Build Time:** '\$(date) >> build-report.md
+          echo '**Workflow Run:** \${{ github.run_id }}' >> build-report.md
+          echo '' >> build-report.md
           
-          if [ "${{ job.status }}" = "success" ]; then
-            echo "**Package:** mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.zst" >> build-report.md
-            if [ -f "zig-source/mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.zst" ]; then
-              echo "**Size:** $(du -h zig-source/mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.zst | cut -f1)" >> build-report.md
+          if [ '\${{ job.status }}' = 'success' ]; then
+            echo '**Package:** mingw-w64-x86_64-zig-'\$ZIG_VERSION'-1-any.pkg.tar.zst' >> build-report.md
+            if [ -f 'zig-source/mingw-w64-x86_64-zig-'\$ZIG_VERSION'-1-any.pkg.tar.zst' ]; then
+              echo '**Size:** '\$(du -h zig-source/mingw-w64-x86_64-zig-\$ZIG_VERSION-1-any.pkg.tar.zst | cut -f1) >> build-report.md
             else
-              echo "**Size:** Unknown" >> build-report.md
+              echo '**Size:** Unknown' >> build-report.md
             fi
-            echo "**Compiler Path:** zig-source/build/stage3/bin/zig.exe" >> build-report.md
+            echo '**Compiler Path:** zig-source/build/stage3/bin/zig.exe' >> build-report.md
           else
-            echo "**Error:** Build failed - check logs for details" >> build-report.md
+            echo '**Error:** Build failed - check logs for details' >> build-report.md
           fi
+          "
 
       - name: Upload build report
         if: always()
