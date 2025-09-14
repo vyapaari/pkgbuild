@@ -56,18 +56,27 @@ jobs:
         run: |
           set -euo pipefail
           echo "Downloading Zig source..."
-          # Extract source URL from PKGBUILD
-          source_line=$(grep '^source=' PKGBUILD | head -1)
-          source_url=$(echo "$source_line" | sed -e "s/source=//" -e "s/[\"']//g" -e "s/\$pkgver/$ZIG_VERSION/")
+          # Extract source URL from PKGBUILD and expand variables
+          if [ -f "PKGBUILD" ]; then
+            source_line=$(grep '^source=' PKGBUILD | head -1)
+            source_url=$(echo "$source_line" | sed -e 's/^source=(//' -e 's/)$//' -e 's/[\"'\'']//g' -e "s/\${pkgver}/$ZIG_VERSION/g" -e "s/\$pkgver/$ZIG_VERSION/g")
+            echo "Parsed source URL: $source_url"
+          else
+            # Fallback to direct URL if no PKGBUILD
+            source_url="https://ziglang.org/download/$ZIG_VERSION/zig-$ZIG_VERSION.tar.xz"
+            echo "Using fallback URL: $source_url"
+          fi
           
           if [[ $source_url == http* ]]; then
             echo "Downloading from: $source_url"
             curl -L --connect-timeout 30 --max-time 600 -o zig-source.tar.xz "$source_url"
           else
-            echo "Using local source file: $source_url"
-            cp "$source_url" zig-source.tar.xz
+            echo "Error: Invalid URL: $source_url"
+            exit 1
           fi
+          
           # Extract source
+          echo "Extracting Zig source..."
           tar -xf zig-source.tar.xz
           mv "zig-$ZIG_VERSION" zig-source
 
