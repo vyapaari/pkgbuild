@@ -122,7 +122,7 @@ jobs:
         pub const optimize = "ReleaseSafe";
         EOF
 
-    - name: Build Zig (Stage 1 - CMake)
+        - name: Build Zig (Stage 1 - CMake)
       shell: bash
       run: |
         set -euo pipefail
@@ -134,11 +134,16 @@ jobs:
         
         cd zig-source/build
         
-        # Just check if tools exist, don't test execution
+        # Check if tools exist
         command -v cmake || exit 1
         command -v ninja || exit 1
         
-        # Try CMake configuration directly
+        echo "Current directory: $(pwd)"
+        echo "Contents:"
+        ls -la ../
+        
+        # Try CMake configuration with simpler options first
+        echo "Attempting CMake configuration..."
         MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
         cmake .. -GNinja \
           -DCMAKE_BUILD_TYPE=Release \
@@ -147,15 +152,27 @@ jobs:
           -DZIG_USE_LLD=ON \
           -DZIG_VERSION="$ZIG_VERSION" \
           -DZIG_TARGET="x86_64-windows-gnu" \
-          -DZIG_OPTIMIZE="ReleaseSafe" \
-          -DZIG_STATIC_ZLIB=OFF \
-          -DZIG_STATIC_ZSTD=OFF 2>&1 | tee cmake-configure.log || exit 1
+          -DZIG_OPTIMIZE="ReleaseSafe" 2>&1 | tee cmake-configure.log
         
-        ninja -j"$BUILD_JOBS" -l"$BUILD_JOBS" 2>&1 | tee cmake-build.log || exit 1
+        # Check if CMake succeeded
+        if [ $? -eq 0 ]; then
+          echo "✓ CMake configuration successful"
+          ninja -j"$BUILD_JOBS" -l"$BUILD_JOBS" 2>&1 | tee cmake-build.log || exit 1
+        else
+          echo "✗ CMake configuration failed, trying with minimal options..."
+          # Try with minimal options
+          MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+          cmake .. -GNinja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="$MINGW_PREFIX" \
+            -DZIG_SHARED_LLVM=ON 2>&1 | tee cmake-configure-minimal.log || exit 1
+          
+          echo "✓ CMake configuration with minimal options successful"
+          ninja -j"$BUILD_JOBS" -l"$BUILD_JOBS" 2>&1 | tee cmake-build.log || exit 1
+        fi
         
         if [ -f "zig2.exe" ]; then
           echo "✓ zig2.exe built successfully"
-          # Don't test execution - it might fail due to DLL issues but the file exists
         else
           echo "✗ zig2.exe not found"
           ls -la *.exe
