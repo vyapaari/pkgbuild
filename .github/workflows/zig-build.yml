@@ -127,8 +127,11 @@ jobs:
           set -euo pipefail
           echo "Starting CMake build (Stage 1)..."
           
-          # Keep Git SDK tools first, but add back essential system paths for DLLs
-          export PATH="/mingw64/bin:/usr/bin:/bin:/c/Windows/System32"
+          # Set up proper PATH for MSYS2 environment
+          export PATH="/mingw64/bin:/usr/bin:/bin"
+          export PKG_CONFIG_PATH="/mingw64/lib/pkgconfig:/mingw64/share/pkgconfig"
+          export CPPFLAGS="-I/mingw64/include"
+          export LDFLAGS="-L/mingw64/lib"
           
           # Debug: Check environment
           echo "Environment check:"
@@ -137,28 +140,17 @@ jobs:
           
           # Debug: Check if tools are available and working
           echo "Checking build tools..."
-          which cmake || echo "cmake not found"
-          which ninja || echo "ninja not found" 
-          which gcc || echo "gcc not found"
-          which pkg-config || echo "pkg-config not found"
-          
-          # Check what CMake we're actually using and its dependencies
-          echo "CMake details:"
-          ls -la /mingw64/bin/cmake.exe || echo "cmake not found"
-          
-          # Try to identify missing DLL dependencies
-          echo "Checking for missing DLL dependencies..."
-          ldd /mingw64/bin/cmake.exe || echo "ldd not available"
+          command -v cmake || echo "cmake not found in PATH"
+          command -v ninja || echo "ninja not found in PATH" 
+          command -v gcc || echo "gcc not found in PATH"
+          command -v pkg-config || echo "pkg-config not found in PATH"
           
           # Check versions for working tools
           echo "Tool versions:"
+          cmake --version 2>&1 || echo "cmake version check failed"
           ninja --version 2>&1 || echo "ninja version check failed"  
           gcc --version 2>&1 | head -1 || echo "gcc version check failed"
           pkg-config --version 2>&1 || echo "pkg-config version check failed"
-          
-          # Try to run CMake with verbose output
-          echo "Testing CMake functionality..."
-          cmake --version 2>&1 || echo "CMake version failed"
           
           # Check if source directory exists
           if [ ! -d "zig-source" ]; then
@@ -174,27 +166,12 @@ jobs:
           mkdir -p build
           cd build
           
-          # If CMake isn't working, let's try to fix dependencies
+          # Verify CMake is functional before proceeding
           if ! cmake --version >/dev/null 2>&1; then
-            echo "CMake is not functional - checking if we need to install dependencies..."
-            
-            # Try to install any missing cmake dependencies
-            echo "Installing potential missing dependencies..."
-            pacman -S --noconfirm --needed mingw-w64-x86_64-libwinpthread-git || echo "pthread install failed"
-            pacman -S --noconfirm --needed mingw-w64-x86_64-zlib || echo "zlib reinstall failed"  
-            pacman -S --noconfirm --needed mingw-w64-x86_64-zstd || echo "zstd reinstall failed"
-            
-            # Update PATH to include more potential library paths
-            export PATH="/mingw64/bin:/mingw64/lib:/usr/bin:/bin:/c/Windows/System32"
-            
-            # Test CMake again
-            echo "Testing CMake after dependency installation..."
-            cmake --version 2>&1 || {
-              echo "CMake still not working - trying alternative approach..."
-              echo "Available cmake-related files:"
-              find /mingw64 -name "*cmake*" -type f 2>/dev/null | head -10
-              exit 1
-            }
+            echo "Error: CMake is not functional"
+            echo "Available executables in /mingw64/bin:"
+            ls -la /mingw64/bin/cmake* || echo "No cmake files found"
+            exit 1
           fi
           
           # Configure with CMake
@@ -211,8 +188,20 @@ jobs:
             -DZIG_STATIC_ZLIB=OFF \
             -DZIG_STATIC_ZSTD=OFF 2>&1 | tee cmake-configure.log
           
+          if [ $? -ne 0 ]; then
+            echo "CMake configuration failed. Log:"
+            cat cmake-configure.log
+            exit 1
+          fi
+          
           echo "Building with limited parallelism for memory management..."
           ninja -j"$BUILD_JOBS" -l"$BUILD_JOBS" 2>&1 | tee cmake-build.log
+          
+          if [ $? -ne 0 ]; then
+            echo "Ninja build failed. Last 50 lines of log:"
+            tail -50 cmake-build.log
+            exit 1
+          fi
           
           # Verify zig2 was built
           if [ -f "zig2.exe" ]; then
