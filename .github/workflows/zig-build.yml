@@ -140,7 +140,7 @@ jobs:
           fi
 
       - name: Build Zig (Stage 2 - Self-hosted compiler)
-        shell: bash
+        shell: C:\git-sdk-64\git-bash.exe -l -c "cd '${{ github.workspace }}' && {0}"
         run: |
           set -euo pipefail
           echo "Building self-hosted compiler with zig2 (Stage 2)..."
@@ -170,7 +170,7 @@ jobs:
           fi
 
       - name: Build Zig (Stage 3 - Final optimized compiler)
-        shell: bash
+        shell: C:\git-sdk-64\git-bash.exe -l -c "cd '${{ github.workspace }}' && {0}"
         run: |
           set -euo pipefail
           echo "Building final stage3 compiler..."
@@ -198,7 +198,7 @@ jobs:
           fi
 
       - name: Test the built compiler
-        shell: bash
+        shell: C:\git-sdk-64\git-bash.exe -l -c "cd '${{ github.workspace }}' && {0}"
         run: |
           set -euo pipefail
           echo "Testing the built compiler..."
@@ -225,7 +225,7 @@ jobs:
           fi
 
       - name: Create package structure
-        shell: bash
+        shell: C:\git-sdk-64\git-bash.exe -l -c "cd '${{ github.workspace }}' && {0}"
         run: |
           set -euo pipefail
           echo "Creating mingw-w64 package structure..."
@@ -259,7 +259,7 @@ jobs:
           EOF
 
       - name: Create package archive
-        shell: bash
+        shell: C:\git-sdk-64\git-bash.exe -l -c "cd '${{ github.workspace }}' && {0}"
         run: |
           set -euo pipefail
           echo "Creating mingw-w64 package archive..."
@@ -279,7 +279,7 @@ jobs:
           fi
 
       - name: Test package installation
-        shell: bash
+        shell: C:\git-sdk-64\git-bash.exe -l -c "cd '${{ github.workspace }}' && {0}"
         run: |
           set -euo pipefail
           echo "Testing package installation..."
