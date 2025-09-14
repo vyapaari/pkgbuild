@@ -27,12 +27,7 @@ jobs:
         fetch-depth: 0
         submodules: recursive
 
-    - name: Setup Git for Windows SDK
-      uses: git-for-windows/setup-git-for-windows-sdk@v1
-      with:
-        flavor: makepkg-git
-
-    - name: Set up SDK environment properly
+        - name: Set up SDK environment properly
       shell: bash
       run: |
         set -euo pipefail
@@ -45,16 +40,16 @@ jobs:
         export PATH="/usr/bin:/mingw64/bin:/bin"
         export MSYSTEM=MINGW64
         
-        echo "Using Git from: $(which git)"
-        echo "Using GCC from: $(which gcc)"
-        echo "Using CMake from: $(which cmake)"
+        echo "Using Git from: $(command -v git)"
+        echo "Using GCC from: $(command -v gcc)"
+        echo "Using CMake from: $(command -v cmake)"
         echo "PATH: $PATH"
         
         # Verify we're using the right tools
-        if [[ $(which git) == "/usr/bin/git" ]]; then
+        if [[ $(command -v git) == "/usr/bin/git" ]]; then
           echo "✓ Using SDK's Git"
         else
-          echo "✗ Wrong Git version detected"
+          echo "✗ Wrong Git version detected: $(command -v git)"
           exit 1
         fi
 
