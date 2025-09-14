@@ -69,7 +69,7 @@ jobs:
         tar -xf zig-source.tar.xz
         mv "zig-${ZIG_VERSION}" zig-source
 
-    - name: Configure build environment
+            - name: Configure build environment
       shell: bash
       run: |
         set -euo pipefail
@@ -83,7 +83,7 @@ jobs:
         # Create config files that might be missing
         mkdir -p ../stage1
         cat > ../stage1/config.h.in << EOF
-#pragma once
+        #pragma once
 #define ZIG_VERSION_STRING "$ZIG_VERSION"
 #define ZIG_VERSION_MAJOR 0
 #define ZIG_VERSION_MINOR 15
