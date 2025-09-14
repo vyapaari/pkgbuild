@@ -29,6 +29,8 @@ jobs:
 
       - name: Setup Git for Windows SDK
         uses: git-for-windows/setup-git-for-windows-sdk@v1
+        with:
+          flavor: makepkg-git
 
       - name: Install build dependencies
         shell: bash
