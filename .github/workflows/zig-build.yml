@@ -9,7 +9,7 @@ on:
     paths: ['PKGBUILD']
   workflow_dispatch:
 
-jobs:
+jobs:  # ← ONLY THIS ONE jobs: LINE SHOULD EXIST
   build-zig:
     runs-on: windows-latest
     timeout-minutes: 180
