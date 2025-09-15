@@ -63,8 +63,20 @@ jobs:
             mingw-w64-x86_64-cmake \
             mingw-w64-x86_64-ninja \
             mingw-w64-x86_64-gcc \
+            mingw-w64-x86_64-curl-winssl \
             base-devel \
             git
+          
+          # Verify critical build tools are installed
+          echo "Verifying build tools installation:"
+          echo "cmake: $(which cmake || echo 'NOT FOUND')"
+          echo "ninja: $(which ninja || echo 'NOT FOUND')"
+          echo "gcc: $(which gcc || echo 'NOT FOUND')"
+          echo "curl: $(which curl || echo 'NOT FOUND')"
+          
+          # Test tool versions
+          cmake --version | head -1 || echo "cmake version check failed"
+          ninja --version || echo "ninja version check failed"
 
       - name: Download and extract Zig source
         shell: D:/git-sdk-64-makepkg-git/usr/bin/bash.EXE --noprofile --norc -e -o pipefail {0}
