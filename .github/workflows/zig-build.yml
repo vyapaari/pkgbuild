@@ -76,8 +76,18 @@ jobs:
           # Extract source URL from PKGBUILD and expand variables
           if [ -f "PKGBUILD" ]; then
             source_line=$(grep '^source=' PKGBUILD | head -1)
-            source_url=$(echo "$source_line" | sed -e 's/^source=(//' -e 's/)$//' -e 's/[\"'\'']/g' -e "s/\${pkgver}/$ZIG_VERSION/g" -e "s/\$pkgver/$ZIG_VERSION/g")
+            
+            # Method 1: More robust parsing that handles quotes properly
+            source_url=$(echo "$source_line" | sed -e 's/^source=(//' -e 's/)$//' -e 's/["'\'']*//g' -e "s/\\\${pkgver}/$ZIG_VERSION/g" -e "s/\\\$pkgver/$ZIG_VERSION/g")
             echo "Parsed source URL: $source_url"
+            
+            # Method 2: Alternative approach using parameter expansion (if above still fails)
+            # source_line_clean=${source_line#source=(}
+            # source_line_clean=${source_line_clean%)}
+            # source_url=${source_line_clean//\$\{pkgver\}/$ZIG_VERSION}
+            # source_url=${source_url//\$pkgver/$ZIG_VERSION}
+            # source_url=${source_url//[\"\']//}
+            
           else
             # Fallback to direct URL if no PKGBUILD
             source_url="https://ziglang.org/download/$ZIG_VERSION/zig-$ZIG_VERSION.tar.xz"
