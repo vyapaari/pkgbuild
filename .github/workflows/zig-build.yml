@@ -70,6 +70,13 @@ jobs:
           cd zig-source
           mkdir -p build
 
+      - name: Generate build files
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd zig-source/build
+          cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release
+
       - name: Build Zig
         shell: bash
         run: |
