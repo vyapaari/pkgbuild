@@ -323,17 +323,41 @@ jobs:
           
           # Create package metadata for mingw-w64
           mkdir -p pkg/.MTREE
-          cat > pkg/.MTREE/package << EOF
-          #mtree
-          ./usr time=$(date +%s)
-          ./usr/bin time=$(date +%s)
-          ./usr/bin/zig.exe time=$(date +%s) mode=755
-          ./usr/lib time=$(date +%s)
-          ./usr/lib/zig time=$(date +%s)
-          ./usr/share time=$(date +%s)
-          ./usr/share/licenses time=$(date +%s)
-          ./usr/share/licenses/zig time=$(date +%s)
-          ./usr/share/licenses/zig/LICENSE time=$(date +%s) mode=644
+          cat > pkg/.MTREE/desc << EOF
+          %NAME%
+          mingw-w64-x86_64-zig
+          
+          %VERSION%
+          $ZIG_VERSION-1
+          
+          %DESC%
+          A general-purpose programming language and toolchain for maintaining robust, optimal, and reusable software
+          
+          %URL%
+          https://ziglang.org/
+          
+          %ARCH%
+          x86_64
+          
+          %BUILDDATE%
+          $(date +%s)
+          
+          %PACKAGER%
+          GitHub Actions
+          
+          %SIZE%
+          $(du -sb pkg | cut -f1)
+          
+          %LICENSE%
+          MIT
+          
+          %DEPENDS%
+          mingw-w64-x86_64-llvm
+          mingw-w64-x86_64-clang
+          mingw-w64-x86_64-lld
+          
+          %PROVIDES%
+          mingw-w64-x86_64-zig
           EOF
 
       - name: Create package archive
@@ -344,13 +368,13 @@ jobs:
           cd zig-source/build/pkg
           
           # Create package using mingw-w64 naming convention
-          tar -cf - .MTREE * | zstd -z -19 - > "../../mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.zst"
+          tar -czf "../../mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.gz" .MTREE *
           cd ../..
           
           # Verify package was created
-          if [ -f "mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.zst" ]; then
+          if [ -f "mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.gz" ]; then
             echo "✓ Package created successfully"
-            ls -la "mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.zst"
+            ls -la "mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.gz"
           else
             echo "✗ Package creation failed"
             exit 1
@@ -364,7 +388,7 @@ jobs:
           cd zig-source
           
           # Install the package
-          pacman -U --noconfirm "mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.zst"
+          pacman -U --noconfirm "mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.gz"
           
           # Test installed compiler
           zig version
@@ -387,7 +411,7 @@ jobs:
         with:
           name: zig-mingw64-package
           path: |
-            zig-source/mingw-w64-x86_64-zig-*.pkg.tar.zst
+            zig-source/mingw-w64-x86_64-zig-*.pkg.tar.gz
             zig-source/build/stage3/bin/zig.exe
             zig-source/build/stage3/
 
@@ -427,9 +451,9 @@ jobs:
           echo "" >> build-report.md
           
           if [ "${{ job.status }}" = "success" ]; then
-            echo "**Package:** mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.zst" >> build-report.md
-            if [ -f "zig-source/mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.zst" ]; then
-              echo "**Size:** $(du -h zig-source/mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.zst | cut -f1)" >> build-report.md
+            echo "**Package:** mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.gz" >> build-report.md
+            if [ -f "zig-source/mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.gz" ]; then
+              echo "**Size:** $(du -h zig-source/mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.gz | cut -f1)" >> build-report.md
             else
               echo "**Size:** Unknown" >> build-report.md
             fi
