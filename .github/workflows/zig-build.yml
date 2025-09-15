@@ -185,6 +185,17 @@ jobs:
         run: |
           echo "Starting CMake build (Stage 1)..."
           
+          # Ensure cmake and ninja are available
+          if ! command -v cmake >/dev/null 2>&1; then
+            echo "cmake not found, installing..."
+            pacman -S --noconfirm mingw-w64-x86_64-cmake
+          fi
+          
+          if ! command -v ninja >/dev/null 2>&1; then
+            echo "ninja not found, installing..."
+            pacman -S --noconfirm mingw-w64-x86_64-ninja
+          fi
+          
           # Verify tools are available
           echo "Environment verification:"
           echo "MSYSTEM: $MSYSTEM"
