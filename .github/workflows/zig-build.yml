@@ -36,11 +36,11 @@ jobs:
         shell: D:/git-sdk-64-makepkg-git/usr/bin/bash.EXE --noprofile --norc -e -o pipefail {0}
         env:
           MSYSTEM: MINGW64
-          PATH: /mingw64/bin:/usr/bin:/bin
+          PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
         run: |
           echo "Git SDK Environment:"
           git --version
-          which git
+          type git
           echo "Working directory:"
           pwd
           ls -la
@@ -49,7 +49,7 @@ jobs:
         shell: D:/git-sdk-64-makepkg-git/usr/bin/bash.EXE --noprofile --norc -e -o pipefail {0}
         env:
           MSYSTEM: MINGW64
-          PATH: /mingw64/bin:/usr/bin:/bin
+          PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
         run: |
           echo "Updating pacman database..."
           pacman -Sy --noconfirm
@@ -70,7 +70,7 @@ jobs:
         shell: D:/git-sdk-64-makepkg-git/usr/bin/bash.EXE --noprofile --norc -e -o pipefail {0}
         env:
           MSYSTEM: MINGW64
-          PATH: /mingw64/bin:/usr/bin:/bin
+          PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
         run: |
           echo "Downloading Zig source..."
           # Extract source URL from PKGBUILD and expand variables
@@ -101,7 +101,7 @@ jobs:
         shell: D:/git-sdk-64-makepkg-git/usr/bin/bash.EXE --noprofile --norc -e -o pipefail {0}
         env:
           MSYSTEM: MINGW64
-          PATH: /mingw64/bin:/usr/bin:/bin
+          PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
         run: |
           echo "Preparing build environment..."
           cd zig-source
@@ -144,7 +144,7 @@ jobs:
         shell: D:/git-sdk-64-makepkg-git/usr/bin/bash.EXE --noprofile --norc -e -o pipefail {0}
         env:
           MSYSTEM: MINGW64
-          PATH: /mingw64/bin:/usr/bin:/bin
+          PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
           PKG_CONFIG_PATH: /mingw64/lib/pkgconfig:/mingw64/share/pkgconfig
           CPPFLAGS: -I/mingw64/include
           LDFLAGS: -L/mingw64/lib
@@ -213,7 +213,7 @@ jobs:
         shell: D:/git-sdk-64-makepkg-git/usr/bin/bash.EXE --noprofile --norc -e -o pipefail {0}
         env:
           MSYSTEM: MINGW64
-          PATH: /mingw64/bin:/usr/bin:/bin
+          PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
         run: |
           echo "Building self-hosted compiler with zig2 (Stage 2)..."
           cd zig-source/build
@@ -245,7 +245,7 @@ jobs:
         shell: D:/git-sdk-64-makepkg-git/usr/bin/bash.EXE --noprofile --norc -e -o pipefail {0}
         env:
           MSYSTEM: MINGW64
-          PATH: /mingw64/bin:/usr/bin:/bin
+          PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
         run: |
           echo "Building final stage3 compiler..."
           cd zig-source/build
@@ -275,7 +275,7 @@ jobs:
         shell: D:/git-sdk-64-makepkg-git/usr/bin/bash.EXE --noprofile --norc -e -o pipefail {0}
         env:
           MSYSTEM: MINGW64
-          PATH: /mingw64/bin:/usr/bin:/bin
+          PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
         run: |
           echo "Testing the built compiler..."
           cd zig-source/build
@@ -304,7 +304,7 @@ jobs:
         shell: D:/git-sdk-64-makepkg-git/usr/bin/bash.EXE --noprofile --norc -e -o pipefail {0}
         env:
           MSYSTEM: MINGW64
-          PATH: /mingw64/bin:/usr/bin:/bin
+          PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
         run: |
           echo "Creating mingw-w64 package structure..."
           cd zig-source/build
@@ -364,7 +364,7 @@ jobs:
         shell: D:/git-sdk-64-makepkg-git/usr/bin/bash.EXE --noprofile --norc -e -o pipefail {0}
         env:
           MSYSTEM: MINGW64
-          PATH: /mingw64/bin:/usr/bin:/bin
+          PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
         run: |
           echo "Creating mingw-w64 package archive..."
           cd zig-source/build/pkg
@@ -386,7 +386,7 @@ jobs:
         shell: D:/git-sdk-64-makepkg-git/usr/bin/bash.EXE --noprofile --norc -e -o pipefail {0}
         env:
           MSYSTEM: MINGW64
-          PATH: /mingw64/bin:/usr/bin:/bin
+          PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
         run: |
           echo "Testing package installation..."
           cd zig-source
@@ -442,7 +442,7 @@ jobs:
         shell: D:/git-sdk-64-makepkg-git/usr/bin/bash.EXE --noprofile --norc -e -o pipefail {0}
         env:
           MSYSTEM: MINGW64
-          PATH: /mingw64/bin:/usr/bin:/bin
+          PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
         run: |
           echo "# Zig Mingw-w64 Build Report" > build-report.md
           echo "" >> build-report.md
