@@ -21,7 +21,6 @@ jobs:
     timeout-minutes: 180
 
     steps:
-      # First setup Git SDK BEFORE checkout
       - name: Setup Git for Windows SDK
         uses: git-for-windows/setup-git-for-windows-sdk@v1
         with:
@@ -33,14 +32,14 @@ jobs:
         run: |
           D:\git-sdk-64-makepkg-git\msys2_shell.cmd -defterm -here -no-start -mingw64 -c "
           set -euo pipefail
-          export PATH=\"/mingw64/bin:/usr/bin:\$PATH\"
+          export PATH='/mingw64/bin:/usr/bin:$PATH'
           
           # Use Git SDK's git for checkout
           git --version
           which git
           
           # Clone the repository
-          git clone --depth 1 --branch \${{ github.ref_name }} \${{ github.repositoryUrl }} .
+          git clone --depth 1 --branch ${{ github.ref_name }} ${{ github.repositoryUrl }} .
           git log -1 --oneline
           "
 
