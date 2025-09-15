@@ -121,103 +121,89 @@ jobs:
           pub const optimize = "ReleaseSafe";
           EOF
 
-      - name: Build Zig (Stage 1 - CMake)
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "Starting CMake build (Stage 1)..."
+          - name: Build Zig (Stage 1 - CMake)
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "Starting CMake build (Stage 1)..."
+        
+        # Clean up PATH to avoid conflicts
+        export PATH="/mingw64/bin:/usr/bin:/bin"
+        export MSYSTEM=MINGW64
+        
+        echo "Environment check after PATH cleanup:"
+        echo "PATH: $PATH"
+        
+        # Install essential runtime dependencies that might be missing
+        echo "Installing essential runtime dependencies..."
+        pacman -S --noconfirm --needed \
+          mingw-w64-x86_64-gcc-libs \
+          mingw-w64-x86_64-winpthreads \
+          mingw-w64-x86_64-zlib \
+          mingw-w64-x86_64-libwinpthread \
+          mingw-w64-x86_64-gmp \
+          mingw-w64-x86_64-mpc \
+          mingw-w64-x86_64-mpfr
+        
+        # Test if tools work after dependency installation
+        echo "Testing tools after dependency installation:"
+        if /mingw64/bin/cmake --version >/dev/null 2>&1; then
+          echo "✓ CMake now works"
+        else
+          echo "✗ CMake still not working - checking DLL dependencies..."
+          # Try to identify missing DLLs
+          ldd /mingw64/bin/cmake.exe || echo "ldd not available"
+          echo "Proceeding despite CMake issues - may work for build"
+        fi
+        
+        cd zig-source/build
+        
+        echo "Attempting CMake configuration with direct path..."
+        # Use full path to cmake and minimal options
+        MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+        /mingw64/bin/cmake .. -GNinja \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_INSTALL_PREFIX="$MINGW_PREFIX" \
+          -DZIG_SHARED_LLVM=ON \
+          -DZIG_USE_LLD=ON 2>&1 | tee cmake-configure.log
+        
+        if [ $? -eq 0 ]; then
+          echo "✓ CMake configuration successful"
+          /mingw64/bin/ninja -j"$BUILD_JOBS" -l"$BUILD_JOBS" 2>&1 | tee cmake-build.log || exit 1
+        else
+          echo "✗ CMake configuration failed"
+          echo "Last 20 lines of CMake log:"
+          tail -20 cmake-configure.log
           
-          # Ensure we're using MINGW64 environment with proper PATH
-          export MSYSTEM=MINGW64
-          source /etc/profile
-          
-          # Debug: Check environment after sourcing profile
-          echo "Environment check after profile setup:"
-          echo "MSYSTEM: $MSYSTEM"
-          echo "PATH: $PATH"
-          echo "Which tar: $(which tar 2>/dev/null || echo 'tar not found')"
-          echo "Which cmake: $(which cmake 2>/dev/null || echo 'cmake not found')"
-          
-          # Try to run tools and check if they work
-          echo "Tool functionality test:"
-          tar --version 2>/dev/null | head -1 || echo "tar not functional"
-          cmake --version 2>/dev/null | head -1 || echo "cmake not functional"
-          ninja --version 2>/dev/null | head -1 || echo "ninja not functional"
-          gcc --version 2>/dev/null | head -1 || echo "gcc not functional"
-          pkg-config --version 2>/dev/null | head -1 || echo "pkg-config not functional"
-          
-          # If tools still aren't working, manually fix PATH
-          if ! cmake --version >/dev/null 2>&1; then
-            echo "Tools not working, manually setting up PATH..."
-            export PATH="/mingw64/bin:/usr/bin:/bin:$PATH"
-            export PKG_CONFIG_PATH="/mingw64/lib/pkgconfig:/mingw64/share/pkgconfig"
-            export CPPFLAGS="-I/mingw64/include"
-            export LDFLAGS="-L/mingw64/lib"
+          # Try even simpler approach - build directly with make if available
+          echo "Trying alternative build approach..."
+          if command -v make >/dev/null 2>&1; then
+            echo "Using make instead of ninja..."
+            MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+            /mingw64/bin/cmake .. -G "Unix Makefiles" \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_INSTALL_PREFIX="$MINGW_PREFIX" \
+              -DZIG_SHARED_LLVM=ON 2>&1 | tee cmake-configure-make.log
             
-            echo "After manual PATH setup:"
-            echo "PATH: $PATH"
-            cmake --version || {
-              echo "CMake still not working. Checking installation:"
-              find /mingw64 -name "cmake*" -type f | head -10
-              pacman -Qs cmake
+            if [ $? -eq 0 ]; then
+              make -j"$BUILD_JOBS" 2>&1 | tee cmake-build-make.log || exit 1
+            else
+              echo "✗ Make-based configuration also failed"
               exit 1
-            }
-          fi
-          
-          # Check if source directory exists
-          if [ ! -d "zig-source" ]; then
-            echo "Error: zig-source directory not found"
-            ls -la
-            exit 1
-          fi
-          
-          cd zig-source
-          echo "Current directory: $(pwd)"
-          
-          # Create and enter build directory
-          mkdir -p build
-          cd build
-          
-          # Configure with CMake using full paths
-          echo "Configuring with CMake..."
-          MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-          /mingw64/bin/cmake.exe .. -GNinja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_INSTALL_PREFIX="$MINGW_PREFIX" \
-            -DCMAKE_C_COMPILER="/mingw64/bin/gcc.exe" \
-            -DCMAKE_CXX_COMPILER="/mingw64/bin/g++.exe" \
-            -DZIG_SHARED_LLVM=ON \
-            -DZIG_USE_LLD=ON \
-            -DZIG_VERSION="$ZIG_VERSION" \
-            -DZIG_TARGET="x86_64-windows-gnu" \
-            -DZIG_OPTIMIZE="ReleaseSafe" \
-            -DZIG_STATIC_ZLIB=OFF \
-            -DZIG_STATIC_ZSTD=OFF 2>&1 | tee cmake-configure.log
-          
-          if [ $? -ne 0 ]; then
-            echo "CMake configuration failed. Log:"
-            cat cmake-configure.log
-            exit 1
-          fi
-          
-          echo "Building with limited parallelism for memory management..."
-          /mingw64/bin/ninja.exe -j"$BUILD_JOBS" -l"$BUILD_JOBS" 2>&1 | tee cmake-build.log
-          
-          if [ $? -ne 0 ]; then
-            echo "Ninja build failed. Last 50 lines of log:"
-            tail -50 cmake-build.log
-            exit 1
-          fi
-          
-          # Verify zig2 was built
-          if [ -f "zig2.exe" ]; then
-            echo "✓ zig2.exe built successfully"
-            ./zig2.exe version || echo "Version check continued despite error"
+            fi
           else
-            echo "✗ zig2.exe not found - checking what was built"
-            ls -la *.exe || echo "No executables found"
+            echo "✗ No alternative build system available"
             exit 1
           fi
+        fi
+        
+        if [ -f "zig2.exe" ]; then
+          echo "✓ zig2.exe built successfully"
+        else
+          echo "✗ zig2.exe not found"
+          ls -la *.exe
+          exit 1
+        fi
 
       - name: Build Zig (Stage 2 - Self-hosted compiler)
         shell: bash
