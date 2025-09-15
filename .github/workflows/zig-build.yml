@@ -63,7 +63,6 @@ jobs:
             mingw-w64-x86_64-cmake \
             mingw-w64-x86_64-ninja \
             mingw-w64-x86_64-gcc \
-            mingw-w64-x86_64-curl \
             base-devel \
             git
 
@@ -97,7 +96,8 @@ jobs:
           
           if [[ $source_url == http* ]]; then
             echo "Downloading from: $source_url"
-            curl -L --connect-timeout 30 --max-time 600 -o zig-source.tar.xz "$source_url"
+            # Use the pre-installed curl variant (curl-winssl is already available)
+            /mingw64/bin/curl -L --connect-timeout 30 --max-time 600 -o zig-source.tar.xz "$source_url"
           else
             echo "Error: Invalid URL: $source_url"
             exit 1
@@ -485,4 +485,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-report
-          path: build-report.md   
+          path: build-report.md
