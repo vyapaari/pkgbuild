@@ -1,4 +1,4 @@
-name: Zig Mingw-w64 Build
+name: Zig mingw-w64 Build
 
 on:
   push:
@@ -35,24 +35,18 @@ jobs:
       - name: Verify Git SDK environment
         shell: bash
         run: |
-          set -euo pipefail
-          echo "Working directory: $(pwd)"
-          echo "Git SDK location: $SYSTEMDRIVE/git-sdk-64-makepkg-git"
-          echo "Environment variables:"
-          echo "  BUILD_JOBS: $BUILD_JOBS"
-          echo "  MINGW_ARCH: $MINGW_ARCH"
-          echo "  MINGW_PREFIX: $MINGW_PREFIX"
-          echo "  ZIG_VERSION: $ZIG_VERSION"
+          echo "Git version: $(git --version)"
+          echo "Makepkg version: $(makepkg --version)"
 
       - name: Install build dependencies
         shell: bash
         run: |
           set -euo pipefail
-          echo "Updating pacman database..."
-          pacman -Syu --noconfirm
-          echo "Installing build dependencies..."
+          echo "Updating pacman database and installing dependencies..."
+          for i in {1..5}; do
+            pacman -Sy --noconfirm && break || sleep 10
+          done
           pacman -S --noconfirm --needed \
-            mingw-w64-x86_64-toolchain \
             mingw-w64-x86_64-cmake \
             mingw-w64-x86_64-ninja \
             mingw-w64-x86_64-llvm \
@@ -63,12 +57,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p zig-source
-          cd zig-source
-          echo "Downloading Zig source code..."
-          curl -L -o zig-${ZIG_VERSION}.tar.xz https://ziglang.org/download/${ZIG_VERSION}/zig-${ZIG_VERSION}.tar.xz
-          echo "Extracting Zig source code..."
-          tar -xJf zig-${ZIG_VERSION}.tar.xz --strip-components=1
+          if [ ! -d zig-source ]; then
+            curl -L -o zig-${ZIG_VERSION}.tar.xz https://ziglang.org/download/${ZIG_VERSION}/zig-${ZIG_VERSION}.tar.xz
+            mkdir zig-source
+            tar -xf zig-${ZIG_VERSION}.tar.xz -C zig-source --strip-components=1
+          fi
 
       - name: Configure build environment
         shell: bash
@@ -76,32 +69,22 @@ jobs:
           set -euo pipefail
           cd zig-source
           mkdir -p build
-          cd build
-          echo "Configuring build with CMake..."
-          cmake .. \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-            -G Ninja
 
       - name: Build Zig
         shell: bash
         run: |
           set -euo pipefail
-          cd zig-source/build
-          echo "Building Zig..."
-          ninja -j${BUILD_JOBS}
+          cd zig-source
+          ninja -j${BUILD_JOBS} -C build
 
       - name: Create package
         shell: bash
         run: |
           set -euo pipefail
           cd zig-source
-          echo "Creating package structure..."
-          mkdir -p pkg${MINGW_PREFIX}/bin
-          cp -v build/zig.exe pkg${MINGW_PREFIX}/bin/
-          cp -v build/lib/lib*.dll pkg${MINGW_PREFIX}/bin/ || true
-          
-          echo "Creating package..."
+          mkdir -p ${MINGW_PREFIX}/bin
+          cp -v build/zig.exe ${MINGW_PREFIX}/bin/
+          cp -v build/lib/lib*.dll ${MINGW_PREFIX}/bin/ || true
           pacman -Syu --noconfirm
           makepkg-mingw --noconfirm --nodeps
 
@@ -114,18 +97,17 @@ jobs:
           echo "**Build Jobs:** ${BUILD_JOBS}" >> build-report.md
           echo "**Build Time:** $(date)" >> build-report.md
           echo "**Workflow Run:** ${{ github.run_id }}" >> build-report.md
-          
-          if [ "${{ job.status }}" = "success" ]; then
-            echo "**Package:** mingw-w64-x86_64-zig-${ZIG_VERSION}-1-any.pkg.tar.zst" >> build-report.md
+          if [[ "${{ job.status }}" == "success" ]]; then
             if [ -f "zig-source/mingw-w64-x86_64-zig-${ZIG_VERSION}-1-any.pkg.tar.zst" ]; then
-              echo "$(ls -lh zig-source/mingw-w64-x86_64-zig-${ZIG_VERSION}-1-any.pkg.tar.zst)" >> build-report.md
+              echo "**Package:** mingw-w64-x86_64-zig-${ZIG_VERSION}-1-any.pkg.tar.zst" >> build-report.md
+              ls -lh zig-source/mingw-w64-x86_64-zig-${ZIG_VERSION}-1-any.pkg.tar.zst >> build-report.md
             else
               echo "**Package:** Unknown" >> build-report.md
             fi
-            echo "**Compiler Path:** zig-source/build/zig.exe" >> build-report.md
           else
             echo "**Build Failed:** Check logs for details" >> build-report.md
           fi
+          echo "**Compiler Path:** zig-source/build/zig.exe" >> build-report.md
 
       - name: Upload build report
         if: always()
@@ -139,4 +121,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: zig-package
-          path: zig-source/mingw-w64-x86_64-zig-*.pkg.tar.zst
+          path: zig-source/mingw-w64-x86_64-zig-${{ env.ZIG_VERSION }}-1-any.pkg.tar.zst
