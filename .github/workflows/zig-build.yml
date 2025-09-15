@@ -437,32 +437,34 @@ jobs:
 
       - name: Create build report
         if: always()
-        shell: bash
+        shell: cmd
         run: |
-          echo "# Zig Mingw-w64 Build Report" > build-report.md
-          echo "" >> build-report.md
-          if [ "${{ job.status }}" = "success" ]; then
-            echo "**Status:** ✅ Success" >> build-report.md
+          D:/git-sdk-64-makepkg-git/msys2_shell.cmd -defterm -here -no-start -mingw64 -c "
+          echo '# Zig Mingw-w64 Build Report' > build-report.md
+          echo '' >> build-report.md
+          if [ '\${{ job.status }}' = 'success' ]; then
+            echo '**Status:** ✅ Success' >> build-report.md
           else
-            echo "**Status:** ❌ Failed" >> build-report.md
+            echo '**Status:** ❌ Failed' >> build-report.md
           fi
-          echo "**Version:** $ZIG_VERSION" >> build-report.md
-          echo "**Build Jobs:** $BUILD_JOBS" >> build-report.md
-          echo "**Build Time:** $(date)" >> build-report.md
-          echo "**Workflow Run:** ${{ github.run_id }}" >> build-report.md
-          echo "" >> build-report.md
+          echo '**Version:** \$ZIG_VERSION' >> build-report.md
+          echo '**Build Jobs:** \$BUILD_JOBS' >> build-report.md
+          echo '**Build Time:** '\$(date) >> build-report.md
+          echo '**Workflow Run:** \${{ github.run_id }}' >> build-report.md
+          echo '' >> build-report.md
           
-          if [ "${{ job.status }}" = "success" ]; then
-            echo "**Package:** mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.gz" >> build-report.md
-            if [ -f "zig-source/mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.gz" ]; then
-              echo "**Size:** $(du -h zig-source/mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.gz | cut -f1)" >> build-report.md
+          if [ '\${{ job.status }}' = 'success' ]; then
+            echo '**Package:** mingw-w64-x86_64-zig-'\$ZIG_VERSION'-1-any.pkg.tar.gz' >> build-report.md
+            if [ -f 'zig-source/mingw-w64-x86_64-zig-'\$ZIG_VERSION'-1-any.pkg.tar.gz' ]; then
+              echo '**Size:** '\$(du -h zig-source/mingw-w64-x86_64-zig-\$ZIG_VERSION-1-any.pkg.tar.gz | cut -f1) >> build-report.md
             else
-              echo "**Size:** Unknown" >> build-report.md
+              echo '**Size:** Unknown' >> build-report.md
             fi
-            echo "**Compiler Path:** zig-source/build/stage3/bin/zig.exe" >> build-report.md
+            echo '**Compiler Path:** zig-source/build/stage3/bin/zig.exe' >> build-report.md
           else
-            echo "**Error:** Build failed - check logs for details" >> build-report.md
+            echo '**Error:** Build failed - check logs for details' >> build-report.md
           fi
+          "
 
       - name: Upload build report
         if: always()
