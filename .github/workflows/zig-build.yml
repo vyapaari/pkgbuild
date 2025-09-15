@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 
 env:
-  ZIG_VERSION: "8.15.1"
+  ZIG_VERSION: "0.15.1"
   BUILD_JOBS: 2
   MINGW_ARCH: mingw64
   MINGW_PREFIX: /mingw64
@@ -66,9 +66,9 @@ jobs:
           mkdir -p zig-source
           cd zig-source
           echo "Downloading Zig source code..."
-          curl -L -o zig-${ZIG_VERSION}.tar.gz https://ziglang.org/download/${ZIG_VERSION}/zig-${ZIG_VERSION}.tar.gz
+          curl -L -o zig-${ZIG_VERSION}.tar.xz https://ziglang.org/download/${ZIG_VERSION}/zig-${ZIG_VERSION}.tar.xz
           echo "Extracting Zig source code..."
-          tar -xzf zig-${ZIG_VERSION}.tar.gz --strip-components=1
+          tar -xJf zig-${ZIG_VERSION}.tar.xz --strip-components=1
 
       - name: Configure build environment
         shell: bash
