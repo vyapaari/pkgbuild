@@ -27,21 +27,16 @@ jobs:
           flavor: makepkg-git
 
       # Now checkout using Git SDK's git
-      - name: Checkout repository (using Git SDK)
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Verify Git SDK environment
         shell: cmd
         run: |
-          D:\git-sdk-64-makepkg-git\msys2_shell.cmd -defterm -here -no-start -mingw64 -c "
-          set -euo pipefail
-          export PATH='/mingw64/bin:/usr/bin:$PATH'
-          
-          # Use Git SDK's git for checkout
-          git --version
-          which git
-          
-          # Clone the repository
-          git clone --depth 1 --branch ${{ github.ref_name }} ${{ github.repositoryUrl }} .
-          git log -1 --oneline
-          "
+          D:\git-sdk-64-makepkg-git\msys2_shell.cmd -defterm -here -no-start -mingw64 -c "set -euo pipefail && export PATH='/mingw64/bin:/usr/bin:$PATH' && echo 'Git SDK Environment:' && git --version && which git && echo 'Working directory:' && pwd && ls -la"
 
       - name: Install build dependencies
         shell: cmd
