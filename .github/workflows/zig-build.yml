@@ -178,12 +178,14 @@ jobs:
           mkdir -p build
           cd build
           
-          # Configure with CMake
+          # Configure with CMake using full paths
           echo "Configuring with CMake..."
           MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-          cmake .. -GNinja \
+          /mingw64/bin/cmake.exe .. -GNinja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_INSTALL_PREFIX="$MINGW_PREFIX" \
+            -DCMAKE_C_COMPILER="/mingw64/bin/gcc.exe" \
+            -DCMAKE_CXX_COMPILER="/mingw64/bin/g++.exe" \
             -DZIG_SHARED_LLVM=ON \
             -DZIG_USE_LLD=ON \
             -DZIG_VERSION="$ZIG_VERSION" \
@@ -199,7 +201,7 @@ jobs:
           fi
           
           echo "Building with limited parallelism for memory management..."
-          ninja -j"$BUILD_JOBS" -l"$BUILD_JOBS" 2>&1 | tee cmake-build.log
+          /mingw64/bin/ninja.exe -j"$BUILD_JOBS" -l"$BUILD_JOBS" 2>&1 | tee cmake-build.log
           
           if [ $? -ne 0 ]; then
             echo "Ninja build failed. Last 50 lines of log:"
