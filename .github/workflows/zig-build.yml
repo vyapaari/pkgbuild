@@ -63,6 +63,7 @@ jobs:
             mingw-w64-x86_64-cmake \
             mingw-w64-x86_64-ninja \
             mingw-w64-x86_64-gcc \
+            mingw-w64-x86_64-curl \
             base-devel \
             git
 
@@ -484,4 +485,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-report
-          path: build-report.md
+          path: build-report.md   
