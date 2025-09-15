@@ -73,6 +73,14 @@ jobs:
           PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
         run: |
           echo "Downloading Zig source..."
+          
+          # Check available download tools
+          echo "Checking available download tools:"
+          which curl || echo "curl not in PATH"
+          which wget || echo "wget not in PATH"
+          ls -la /mingw64/bin/curl* || echo "No curl variants in /mingw64/bin/"
+          ls -la /usr/bin/curl* || echo "No curl variants in /usr/bin/"
+          
           # Extract source URL from PKGBUILD and expand variables
           if [ -f "PKGBUILD" ]; then
             source_line=$(grep '^source=' PKGBUILD | head -1)
@@ -96,8 +104,17 @@ jobs:
           
           if [[ $source_url == http* ]]; then
             echo "Downloading from: $source_url"
-            # Use the pre-installed curl variant (curl-winssl is already available)
-            /mingw64/bin/curl -L --connect-timeout 30 --max-time 600 -o zig-source.tar.xz "$source_url"
+            # Try multiple download methods
+            if command -v curl >/dev/null 2>&1; then
+              curl -L --connect-timeout 30 --max-time 600 -o zig-source.tar.xz "$source_url"
+            elif [ -f "/usr/bin/curl" ]; then
+              /usr/bin/curl -L --connect-timeout 30 --max-time 600 -o zig-source.tar.xz "$source_url"
+            elif command -v wget >/dev/null 2>&1; then
+              wget --timeout=30 --tries=3 -O zig-source.tar.xz "$source_url"
+            else
+              echo "Error: No suitable download tool found"
+              exit 1
+            fi
           else
             echo "Error: Invalid URL: $source_url"
             exit 1
