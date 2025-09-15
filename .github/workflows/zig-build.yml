@@ -19,7 +19,6 @@ jobs:
   build-zig:
     runs-on: windows-latest
     timeout-minutes: 180
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
