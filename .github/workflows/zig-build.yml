@@ -34,20 +34,20 @@ jobs:
           submodules: recursive
 
       - name: Verify Git SDK environment
-        shell: C:/git-sdk-64/usr/bin/bash.EXE --noprofile --norc -e -o pipefail {0}
+        shell: bash
         env:
           MSYSTEM: MINGW64
           PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
         run: |
           echo "Git SDK Environment:"
           git --version
-          type git
+          which git
           echo "Working directory:"
           pwd
           ls -la
 
       - name: Install build dependencies
-        shell: C:/git-sdk-64/usr/bin/bash.EXE --noprofile --norc -e -o pipefail {0}
+        shell: bash
         env:
           MSYSTEM: MINGW64
           PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
@@ -78,12 +78,12 @@ jobs:
           # Check cmake
           if [ -f "/mingw64/bin/cmake.exe" ]; then
             echo "cmake found at: /mingw64/bin/cmake.exe"
-            /mingw64/bin/cmake.exe --version | head -1
             CMAKE_FOUND=true
+            /mingw64/bin/cmake.exe --version | head -1 || echo "Warning: Could not get cmake version"
           elif command -v cmake >/dev/null 2>&1; then
             echo "cmake found in PATH: $(command -v cmake)"
-            cmake --version | head -1
             CMAKE_FOUND=true
+            cmake --version | head -1 || echo "Warning: Could not get cmake version"
           else
             echo "ERROR: cmake not found"
             CMAKE_FOUND=false
@@ -92,12 +92,12 @@ jobs:
           # Check ninja
           if [ -f "/mingw64/bin/ninja.exe" ]; then
             echo "ninja found at: /mingw64/bin/ninja.exe"
-            /mingw64/bin/ninja.exe --version
             NINJA_FOUND=true
+            /mingw64/bin/ninja.exe --version || echo "Warning: Could not get ninja version"
           elif command -v ninja >/dev/null 2>&1; then
             echo "ninja found in PATH: $(command -v ninja)"
-            ninja --version
             NINJA_FOUND=true
+            ninja --version || echo "Warning: Could not get ninja version"
           else
             echo "ERROR: ninja not found"
             NINJA_FOUND=false
@@ -106,11 +106,15 @@ jobs:
           # Check gcc
           if [ -f "/mingw64/bin/gcc.exe" ]; then
             echo "gcc found at: /mingw64/bin/gcc.exe"
-            /mingw64/bin/gcc.exe --version | head -1
+            GCC_FOUND=true
+            /mingw64/bin/gcc.exe --version | head -1 || echo "Warning: Could not get gcc version"
           elif command -v gcc >/dev/null 2>&1; then
             echo "gcc found in PATH: $(command -v gcc)"
+            GCC_FOUND=true
+            gcc --version | head -1 || echo "Warning: Could not get gcc version"
           else
             echo "ERROR: gcc not found"
+            GCC_FOUND=false
           fi
           
           # Check curl
@@ -128,9 +132,11 @@ jobs:
             ls -la /mingw64/bin/ | grep -E "(cmake|ninja)" || echo "No cmake/ninja found"
             exit 1
           fi
+          
+          echo "All critical build tools found."
 
       - name: Download and extract Zig source
-        shell: C:/git-sdk-64/usr/bin/bash.EXE --noprofile --norc -e -o pipefail {0}
+        shell: bash
         env:
           MSYSTEM: MINGW64
           PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
@@ -142,7 +148,7 @@ jobs:
             source_line=$(grep '^source=' PKGBUILD | head -1)
             
             # More robust parsing that handles quotes properly
-            source_url=$(echo "$source_line" | sed -e 's/^source=(//' -e 's/)$//' -e 's/["'\'']*//g' -e "s/\\\${pkgver}/$ZIG_VERSION/g" -e "s/\\\$pkgver/$ZIG_VERSION/g")
+            source_url=$(echo "$source_line" | sed -e 's/^source=(//' -e 's/)$//' -e 's/["'\'']*//g' -e "s/\\\${pkgver}/$ZIG_VERSION/g")
             echo "Parsed source URL: $source_url"
             
           else
@@ -197,7 +203,7 @@ jobs:
           mv "zig-$ZIG_VERSION" zig-source
 
       - name: Configure build environment
-        shell: C:/git-sdk-64/usr/bin/bash.EXE --noprofile --norc -e -o pipefail {0}
+        shell: bash
         env:
           MSYSTEM: MINGW64
           PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
@@ -227,7 +233,7 @@ jobs:
           EOF
 
       - name: Build Zig (Stage 1 - CMake)
-        shell: C:/git-sdk-64/usr/bin/bash.EXE --noprofile --norc -e -o pipefail {0}
+        shell: bash
         env:
           MSYSTEM: MINGW64
           PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
@@ -270,27 +276,18 @@ jobs:
           $NINJA_CMD --version || echo "ninja version check failed but proceeding"
           echo "gcc version: $(gcc --version | head -1 || echo 'gcc version check failed')"
           
-          # Check if we're in the correct directory
-          cd zig-source/build || {
-            # If not, try to find and navigate to the correct directory
-            echo "Current directory: $(pwd)"
-            if [ -d "build" ]; then
-              cd build
-              echo "Moved to build directory: $(pwd)"
-            elif [ -d "../zig-source/build" ]; then
-              cd ../zig-source/build
-              echo "Moved to ../zig-source/build: $(pwd)"
-            else
-              echo "Error: Cannot find zig-source/build directory"
-              echo "Current directory contents:"
-              ls -la
-              echo "Parent directory contents:"
-              ls -la ..
-              exit 1
-            fi
-          }
+          # Check if source directory exists
+          if [ ! -d "zig-source" ]; then
+            echo "Error: zig-source directory not found"
+            echo "Current directory contents:"
+            ls -la
+            exit 1
+          fi
           
-          echo "Current directory: $(pwd)"
+          cd zig-source/build
+          echo "Build directory: $(pwd)"
+          echo "Parent directory contents:"
+          ls -la ..
           
           # Configure with CMake using explicit command
           echo "Configuring with CMake..."
@@ -347,7 +344,7 @@ jobs:
           ./$ZIG_EXECUTABLE version || echo "Version check continued despite error"
 
       - name: Build Zig (Stage 2 - Self-hosted compiler)
-        shell: C:/git-sdk-64/usr/bin/bash.EXE --noprofile --norc -e -o pipefail {0}
+        shell: bash
         env:
           MSYSTEM: MINGW64
           PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
@@ -388,7 +385,7 @@ jobs:
           fi
 
       - name: Build Zig (Stage 3 - Final optimized compiler)
-        shell: C:/git-sdk-64/usr/bin/bash.EXE --noprofile --norc -e -o pipefail {0}
+        shell: bash
         env:
           MSYSTEM: MINGW64
           PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
@@ -419,7 +416,7 @@ jobs:
           fi
 
       - name: Test the built compiler
-        shell: C:/git-sdk-64/usr/bin/bash.EXE --noprofile --norc -e -o pipefail {0}
+        shell: bash
         env:
           MSYSTEM: MINGW64
           PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
@@ -450,7 +447,7 @@ jobs:
           fi
 
       - name: Create package structure
-        shell: C:/git-sdk-64/usr/bin/bash.EXE --noprofile --norc -e -o pipefail {0}
+        shell: bash
         env:
           MSYSTEM: MINGW64
           PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
@@ -510,7 +507,7 @@ jobs:
           EOF
 
       - name: Create package archive
-        shell: C:/git-sdk-64/usr/bin/bash.EXE --noprofile --norc -e -o pipefail {0}
+        shell: bash
         env:
           MSYSTEM: MINGW64
           PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
@@ -532,7 +529,7 @@ jobs:
           fi
 
       - name: Test package installation
-        shell: C:/git-sdk-64/usr/bin/bash.EXE --noprofile --norc -e -o pipefail {0}
+        shell: bash
         env:
           MSYSTEM: MINGW64
           PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
@@ -560,11 +557,106 @@ jobs:
           
           echo "✓ Package installation and testing completed successfully"
 
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: failure-artifacts-${{ github.run_number }}
+          path: |
+            zig-source/build/*.log
+            zig-source/build/CMakeFiles/CMakeError.log
+            zig-source/build/CMakeFiles/CMakeOutput.log
+            zig-source/build/CMakeCache.txt
+            zig-source/build/stage*/*.log
+            zig-source/*.log
+            build-report.md
+
+      - name: Create build report
+        if: always()
+        shell: bash
+        env:
+          MSYSTEM: MINGW64
+          PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
+        run: |
+          BUILD_REPORT="build-report.md"
+          echo "# Zig Mingw-w64 Build Report" > "$BUILD_REPORT"
+          echo "" >> "$BUILD_REPORT"
+          echo "**Status:** ${{ job.status == 'success' && '✅ Success' || '❌ Failed' }}" >> "$BUILD_REPORT"
+          echo "**Version:** $ZIG_VERSION" >> "$BUILD_REPORT"
+          echo "**Build Jobs:** $BUILD_JOBS" >> "$BUILD_REPORT"
+          echo "**Build Time:** $(date)" >> "$BUILD_REPORT"
+          echo "**Workflow Run:** ${{ github.run_id }}" >> "$BUILD_REPORT"
+          echo "" >> "$BUILD_REPORT"
+          
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "**Package:** mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.gz" >> "$BUILD_REPORT"
+            if [ -f "zig-source/mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.gz" ]; then
+              echo "**Size:** $(du -h "zig-source/mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.gz" | cut -f1)" >> "$BUILD_REPORT"
+              # Add SHA256 checksum
+              echo "**SHA256:** $(sha256sum "zig-source/mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.gz" | cut -d' ' -f1)" >> "$BUILD_REPORT"
+            fi
+            echo "**Compiler Path:** zig-source/build/stage3/bin/zig.exe" >> "$BUILD_REPORT"
+            echo "" >> "$BUILD_REPORT"
+            echo "## Build Steps Completed" >> "$BUILD_REPORT"
+            echo "- ✅ Dependencies installed" >> "$BUILD_REPORT"
+            echo "- ✅ Source downloaded and extracted" >> "$BUILD_REPORT"
+            echo "- ✅ Stage 1 build (CMake)" >> "$BUILD_REPORT"
+            echo "- ✅ Stage 2 build (Self-hosted)" >> "$BUILD_REPORT"
+            echo "- ✅ Stage 3 build (Final)" >> "$BUILD_REPORT"
+            echo "- ✅ Package created" >> "$BUILD_REPORT"
+            echo "- ✅ Package tested" >> "$BUILD_REPORT"
+          else
+            echo "## Build Steps Status" >> "$BUILD_REPORT"
+            
+            # Check which steps completed successfully
+            if [ -d "zig-source" ]; then
+              echo "- ✅ Dependencies installed" >> "$BUILD_REPORT"
+              echo "- ✅ Source downloaded and extracted" >> "$BUILD_REPORT"
+              
+              if [ -f "zig-source/build/zig.exe" ] || [ -f "zig-source/build/zig1.exe" ]; then
+                echo "- ✅ Stage 1 build (CMake)" >> "$BUILD_REPORT"
+              else
+                echo "- ❌ Stage 1 build (CMake) failed" >> "$BUILD_REPORT"
+              fi
+              
+              if [ -f "zig-source/build/zig-stage2.exe" ]; then
+                echo "- ✅ Stage 2 build (Self-hosted)" >> "$BUILD_REPORT"
+              else
+                echo "- ❌ Stage 2 build (Self-hosted) failed" >> "$BUILD_REPORT"
+              fi
+              
+              if [ -f "zig-source/build/stage3/bin/zig.exe" ]; then
+                echo "- ✅ Stage 3 build (Final)" >> "$BUILD_REPORT"
+              else
+                echo "- ❌ Stage 3 build (Final) failed" >> "$BUILD_REPORT"
+              fi
+              
+              if [ -f "zig-source/mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.gz" ]; then
+                echo "- ✅ Package created" >> "$BUILD_REPORT"
+              else
+                echo "- ❌ Package creation failed" >> "$BUILD_REPORT"
+              fi
+            else
+              echo "- ❌ Initial environment setup failed" >> "$BUILD_REPORT"
+            fi
+            
+            echo "" >> "$BUILD_REPORT"
+            echo "## Error Information" >> "$BUILD_REPORT"
+            echo "Please check the uploaded logs for detailed error information." >> "$BUILD_REPORT"
+          fi
+
+      - name: Upload build report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-report-${{ github.run_number }}
+          path: build-report.md
+
       - name: Upload build artifacts
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: zig-mingw64-package-${{ env.ZIG_VERSION }}
+          name: zig-mingw64-${{ env.ZIG_VERSION }}-package
           path: |
             zig-source/mingw-w64-x86_64-zig-*.pkg.tar.gz
             zig-source/build/stage3/bin/zig.exe
@@ -576,54 +668,5 @@ jobs:
           name: build-logs-${{ github.run_number }}
           path: |
             zig-source/build/*.log
-
-      - name: Upload failure artifacts
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: failure-artifacts-${{ github.run_number }}
-          path: |
-            zig-source/build/
+            zig-source/build/stage*/*.log
             zig-source/*.log
-
-      - name: Create build report
-        if: always()
-        shell: D:/git-sdk-64-makepkg-git/usr/bin/bash.EXE --noprofile --norc -e -o pipefail {0}
-        env:
-          MSYSTEM: MINGW64
-          PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
-        run: |
-          echo "# Zig Mingw-w64 Build Report" > build-report.md
-          echo "" >> build-report.md
-          echo "**Status:** ${{ job.status == 'success' && '✅ Success' || '❌ Failed' }}" >> build-report.md
-          echo "**Version:** $ZIG_VERSION" >> build-report.md
-          echo "**Build Jobs:** $BUILD_JOBS" >> build-report.md
-          echo "**Build Time:** $(date)" >> build-report.md
-          echo "**Workflow Run:** ${{ github.run_id }}" >> build-report.md
-          echo "" >> build-report.md
-          
-          if [ "${{ job.status }}" = "success" ]; then
-            echo "**Package:** mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.gz" >> build-report.md
-            if [ -f "zig-source/mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.gz" ]; then
-              echo "**Size:** $(du -h "zig-source/mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.gz" | cut -f1)" >> build-report.md
-            fi
-            echo "**Compiler Path:** zig-source/build/stage3/bin/zig.exe" >> build-report.md
-            echo "" >> build-report.md
-            echo "## Build Steps Completed" >> build-report.md
-            echo "- ✅ Dependencies installed" >> build-report.md
-            echo "- ✅ Source downloaded and extracted" >> build-report.md
-            echo "- ✅ Stage 1 build (CMake)" >> build-report.md
-            echo "- ✅ Stage 2 build (Self-hosted)" >> build-report.md
-            echo "- ✅ Stage 3 build (Final)" >> build-report.md
-            echo "- ✅ Package created" >> build-report.md
-            echo "- ✅ Package tested" >> build-report.md
-          else
-            echo "**Error:** Build failed - check logs for details" >> build-report.md
-          fi
-
-      - name: Upload build report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-report-${{ github.run_number }}
-          path: build-report.md
