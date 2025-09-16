@@ -66,38 +66,65 @@ jobs:
             mingw-w64-x86_64-curl-winssl \
             base-devel \
             git \
-            curl   # Ensure MSYS2 curl is installed too
-
-          # Refresh environment so new tools are available
-          source /etc/profile
+            which
+          
+          # Force PATH refresh and hash table reset
           hash -r
-
-          # Verify critical build tools are installed
+          
+          # Verify critical build tools are installed using direct paths first
           echo "Verifying build tools installation:"
-          echo "cmake path: $(command -v cmake || type -a cmake || echo 'NOT FOUND')"
-          echo "ninja path: $(command -v ninja || type -a ninja || echo 'NOT FOUND')"
-          echo "gcc path: $(command -v gcc || type -a gcc || echo 'NOT FOUND')"
-          echo "curl path: $(command -v curl || type -a curl || echo 'NOT FOUND')"
-
-          # Test tool versions with proper error handling
-          if command -v cmake >/dev/null 2>&1; then
-            cmake --version | head -1 || echo "cmake version check failed"
+          
+          # Check cmake
+          if [ -f "/mingw64/bin/cmake.exe" ]; then
+            echo "cmake found at: /mingw64/bin/cmake.exe"
+            /mingw64/bin/cmake.exe --version | head -1
+            CMAKE_FOUND=true
+          elif command -v cmake >/dev/null 2>&1; then
+            echo "cmake found in PATH: $(command -v cmake)"
+            cmake --version | head -1
+            CMAKE_FOUND=true
           else
-            echo "ERROR: cmake not found in PATH"
-            exit 1
+            echo "ERROR: cmake not found"
+            CMAKE_FOUND=false
           fi
-
-          if command -v ninja >/dev/null 2>&1; then
-            ninja --version || echo "ninja version check failed"
+          
+          # Check ninja
+          if [ -f "/mingw64/bin/ninja.exe" ]; then
+            echo "ninja found at: /mingw64/bin/ninja.exe"
+            /mingw64/bin/ninja.exe --version
+            NINJA_FOUND=true
+          elif command -v ninja >/dev/null 2>&1; then
+            echo "ninja found in PATH: $(command -v ninja)"
+            ninja --version
+            NINJA_FOUND=true
           else
-            echo "ERROR: ninja not found in PATH"
-            exit 1
+            echo "ERROR: ninja not found"
+            NINJA_FOUND=false
           fi
-
-          if command -v curl >/dev/null 2>&1; then
-            curl --version | head -1 || echo "curl version check failed"
+          
+          # Check gcc
+          if [ -f "/mingw64/bin/gcc.exe" ]; then
+            echo "gcc found at: /mingw64/bin/gcc.exe"
+            /mingw64/bin/gcc.exe --version | head -1
+          elif command -v gcc >/dev/null 2>&1; then
+            echo "gcc found in PATH: $(command -v gcc)"
           else
-            echo "ERROR: curl not found in PATH"
+            echo "ERROR: gcc not found"
+          fi
+          
+          # Check curl
+          if [ -f "/mingw64/bin/curl.exe" ]; then
+            echo "curl found at: /mingw64/bin/curl.exe"
+          elif command -v curl >/dev/null 2>&1; then
+            echo "curl found in PATH: $(command -v curl)"
+          else
+            echo "ERROR: curl not found"
+          fi
+          
+          # Exit if critical tools missing
+          if [ "$CMAKE_FOUND" != "true" ] || [ "$NINJA_FOUND" != "true" ]; then
+            echo "Critical build tools missing. Listing /mingw64/bin contents:"
+            ls -la /mingw64/bin/ | grep -E "(cmake|ninja)" || echo "No cmake/ninja found"
             exit 1
           fi
 
@@ -108,41 +135,56 @@ jobs:
           PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
         run: |
           echo "Downloading Zig source..."
-
+          
           # Extract source URL from PKGBUILD and expand variables
           if [ -f "PKGBUILD" ]; then
             source_line=$(grep '^source=' PKGBUILD | head -1)
+            
+            # More robust parsing that handles quotes properly
             source_url=$(echo "$source_line" | sed -e 's/^source=(//' -e 's/)$//' -e 's/["'\'']*//g' -e "s/\\\${pkgver}/$ZIG_VERSION/g" -e "s/\\\$pkgver/$ZIG_VERSION/g")
             echo "Parsed source URL: $source_url"
+            
           else
+            # Fallback to direct URL if no PKGBUILD
             source_url="https://ziglang.org/download/$ZIG_VERSION/zig-$ZIG_VERSION.tar.xz"
             echo "Using fallback URL: $source_url"
           fi
-
+          
           if [[ $source_url == http* ]]; then
             echo "Downloading from: $source_url"
-            # Try all possible curl locations
-            if command -v curl >/dev/null 2>&1; then
-              curl -L --connect-timeout 30 --max-time 600 --retry 3 --retry-delay 5 -f -o zig-source.tar.xz "$source_url"
-            elif [ -x /mingw64/bin/curl.exe ]; then
-              /mingw64/bin/curl.exe -L --connect-timeout 30 --max-time 600 --retry 3 --retry-delay 5 -f -o zig-source.tar.xz "$source_url"
-            elif [ -x /usr/bin/curl.exe ]; then
-              /usr/bin/curl.exe -L --connect-timeout 30 --max-time 600 --retry 3 --retry-delay 5 -f -o zig-source.tar.xz "$source_url"
+            
+            # Try different curl locations
+            CURL_CMD=""
+            if [ -f "/mingw64/bin/curl.exe" ]; then
+              CURL_CMD="/mingw64/bin/curl.exe"
+            elif command -v curl >/dev/null 2>&1; then
+              CURL_CMD="curl"
             else
-              echo "ERROR: curl not found"
-              exit 1
+              echo "ERROR: curl not found anywhere"
+              echo "Attempting to install curl..."
+              pacman -S --noconfirm mingw-w64-x86_64-curl-winssl
+              if [ -f "/mingw64/bin/curl.exe" ]; then
+                CURL_CMD="/mingw64/bin/curl.exe"
+              else
+                echo "ERROR: curl installation failed"
+                exit 1
+              fi
             fi
+            
+            echo "Using curl at: $CURL_CMD"
+            $CURL_CMD -L --connect-timeout 30 --max-time 600 --retry 3 --retry-delay 5 -f -o zig-source.tar.xz "$source_url"
+            
           else
             echo "Error: Invalid URL: $source_url"
             exit 1
           fi
-
+          
           # Verify download
           if [ ! -f "zig-source.tar.xz" ] || [ ! -s "zig-source.tar.xz" ]; then
             echo "Error: Download failed or file is empty"
             exit 1
           fi
-
+          
           # Extract source
           echo "Extracting Zig source..."
           tar -xf zig-source.tar.xz
@@ -161,8 +203,12 @@ jobs:
         run: |
           echo "Preparing build environment..."
           cd zig-source
+          
+          # Create build directory
           mkdir -p build
           cd build
+          
+          # Create minimal config files that might be missing
           mkdir -p ../stage1
           cat > ../stage1/config.h.in << 'EOF'
           #pragma once
@@ -189,49 +235,63 @@ jobs:
           LDFLAGS: -L/mingw64/lib
         run: |
           echo "Starting CMake build (Stage 1)..."
+          
+          # Determine tool paths explicitly
+          CMAKE_CMD=""
+          NINJA_CMD=""
+          
+          if [ -f "/mingw64/bin/cmake.exe" ]; then
+            CMAKE_CMD="/mingw64/bin/cmake.exe"
+          elif command -v cmake >/dev/null 2>&1; then
+            CMAKE_CMD="cmake"
+          else
+            echo "ERROR: cmake not found"
+            exit 1
+          fi
+          
+          if [ -f "/mingw64/bin/ninja.exe" ]; then
+            NINJA_CMD="/mingw64/bin/ninja.exe"
+          elif command -v ninja >/dev/null 2>&1; then
+            NINJA_CMD="ninja"
+          else
+            echo "ERROR: ninja not found"
+            exit 1
+          fi
+          
+          echo "Using CMAKE: $CMAKE_CMD"
+          echo "Using NINJA: $NINJA_CMD"
           echo "Environment verification:"
           echo "MSYSTEM: $MSYSTEM"
           echo "PATH: $PATH"
           echo "Working directory: $(pwd)"
-          if [ -f "/mingw64/bin/cmake.exe" ]; then
-            CMAKE_CMD="/mingw64/bin/cmake.exe"
-            echo "cmake found at: $CMAKE_CMD"
-            $CMAKE_CMD --version | head -1
-          elif command -v cmake >/dev/null 2>&1; then
-            CMAKE_CMD="cmake"
-            echo "cmake found in PATH: $(command -v cmake)"
-            $CMAKE_CMD --version | head -1
-          else
-            echo "ERROR: cmake not found anywhere"
-            echo "Available executables in /mingw64/bin:"
-            ls -la /mingw64/bin/cmake* || echo "No cmake executables found"
-            exit 1
-          fi
-          if [ -f "/mingw64/bin/ninja.exe" ]; then
-            NINJA_CMD="/mingw64/bin/ninja.exe"
-            echo "ninja found at: $NINJA_CMD"
-            $NINJA_CMD --version
-          elif command -v ninja >/dev/null 2>&1; then
-            NINJA_CMD="ninja"
-            echo "ninja found in PATH: $(command -v ninja)"
-            $NINJA_CMD --version
-          else
-            echo "ERROR: ninja not found anywhere"
-            echo "Available executables in /mingw64/bin:"
-            ls -la /mingw64/bin/ninja* || echo "No ninja executables found"
-            exit 1
-          fi
-          echo "gcc version: $(gcc --version | head -1)"
-          if [ ! -d "zig-source" ]; then
-            echo "Error: zig-source directory not found"
-            echo "Current directory contents:"
-            ls -la
-            exit 1
-          fi
-          cd zig-source/build
-          echo "Build directory: $(pwd)"
-          echo "Parent directory contents:"
-          ls -la ..
+          
+          $CMAKE_CMD --version | head -1 || echo "cmake version check failed but proceeding"
+          $NINJA_CMD --version || echo "ninja version check failed but proceeding"
+          echo "gcc version: $(gcc --version | head -1 || echo 'gcc version check failed')"
+          
+          # Check if we're in the correct directory
+          cd zig-source/build || {
+            # If not, try to find and navigate to the correct directory
+            echo "Current directory: $(pwd)"
+            if [ -d "build" ]; then
+              cd build
+              echo "Moved to build directory: $(pwd)"
+            elif [ -d "../zig-source/build" ]; then
+              cd ../zig-source/build
+              echo "Moved to ../zig-source/build: $(pwd)"
+            else
+              echo "Error: Cannot find zig-source/build directory"
+              echo "Current directory contents:"
+              ls -la
+              echo "Parent directory contents:"
+              ls -la ..
+              exit 1
+            fi
+          }
+          
+          echo "Current directory: $(pwd)"
+          
+          # Configure with CMake using explicit command
           echo "Configuring with CMake..."
           MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
           $CMAKE_CMD .. -GNinja \
@@ -244,6 +304,7 @@ jobs:
             -DZIG_VERSION="$ZIG_VERSION" \
             -DZIG_STATIC_ZLIB=OFF \
             -DZIG_STATIC_ZSTD=OFF 2>&1 | tee cmake-configure.log
+          
           if [ $? -ne 0 ]; then
             echo "CMake configuration failed. Full log:"
             cat cmake-configure.log
@@ -251,8 +312,10 @@ jobs:
             ls -la CMake* || echo "No CMake files found"
             exit 1
           fi
+          
           echo "Building with limited parallelism for memory management..."
           $NINJA_CMD -j"$BUILD_JOBS" -l"$BUILD_JOBS" 2>&1 | tee cmake-build.log
+          
           if [ $? -ne 0 ]; then
             echo "Ninja build failed. Last 100 lines of log:"
             tail -100 cmake-build.log
@@ -260,8 +323,12 @@ jobs:
             ls -la
             exit 1
           fi
+          
+          # Verify what was built
           echo "Build completed. Checking output:"
           ls -la *.exe || echo "No executables found"
+          
+          # Look for any zig executable
           ZIG_EXECUTABLE=""
           if [ -f "zig.exe" ]; then
             ZIG_EXECUTABLE="zig.exe"
@@ -274,6 +341,7 @@ jobs:
             find . -name "zig*.exe" -type f || echo "No zig executables found anywhere"
             exit 1
           fi
+          
           echo "✓ $ZIG_EXECUTABLE built successfully"
           ./$ZIG_EXECUTABLE version || echo "Version check continued despite error"
 
@@ -285,6 +353,8 @@ jobs:
         run: |
           echo "Building self-hosted compiler (Stage 2)..."
           cd zig-source/build
+          
+          # Find the bootstrap compiler
           ZIG_EXECUTABLE=""
           if [ -f "zig2.exe" ]; then
             ZIG_EXECUTABLE="zig2.exe"
@@ -297,12 +367,16 @@ jobs:
             ls -la *.exe || echo "No executables found"
             exit 1
           fi
+          
           echo "Using bootstrap compiler: $ZIG_EXECUTABLE"
+          
+          # Build self-hosted compiler
           ./$ZIG_EXECUTABLE build-exe ../src/main.zig \
             -femit-bin=zig-stage2.exe \
             -OReleaseSafe \
             --name zig \
             --zig-lib-dir ../lib 2>&1 | tee stage2-build.log
+          
           if [ -f "zig-stage2.exe" ]; then
             echo "✓ zig-stage2.exe built successfully"
             ./zig-stage2.exe version
@@ -320,12 +394,14 @@ jobs:
         run: |
           echo "Building final optimized compiler (Stage 3)..."
           cd zig-source/build
+          
           if [ -f "zig-stage2.exe" ]; then
             ./zig-stage2.exe build \
               --prefix stage3 \
               --zig-lib-dir ../lib \
               -Doptimize=ReleaseSafe \
               --verbose 2>&1 | tee stage3-build.log
+            
             if [ -f "stage3/bin/zig.exe" ]; then
               echo "✓ Final Zig compiler built successfully"
               ./stage3/bin/zig.exe version
@@ -349,17 +425,23 @@ jobs:
         run: |
           echo "Testing the built compiler..."
           cd zig-source/build
+          
           if [ -f "stage3/bin/zig.exe" ]; then
+            # Basic functionality tests
             ./stage3/bin/zig.exe version
             ./stage3/bin/zig.exe targets
+            
+            # Simple compile test
             cat > test.zig << 'EOF'
           const std = @import("std");
           pub fn main() void {
               std.debug.print("Hello, Zig!\n", .{});
           }
           EOF
+            
             ./stage3/bin/zig.exe build-exe test.zig
             ./test.exe
+            
             echo "✓ All compiler tests passed"
           else
             echo "No final compiler found for testing"
@@ -374,44 +456,54 @@ jobs:
         run: |
           echo "Creating mingw-w64 package structure..."
           cd zig-source/build
+          
+          # Create package directory structure
           mkdir -p "pkg/$MINGW_PREFIX"/{bin,lib,share/licenses/zig}
+          
+          # Install final compiler binary
           install -Dm755 stage3/bin/zig.exe "pkg/$MINGW_PREFIX/bin/zig.exe"
+          
+          # Install standard library (critical for Zig to function)
           cp -r ../lib "pkg/$MINGW_PREFIX/lib/zig"
+          
+          # Install license
           install -Dm644 ../LICENSE "pkg/$MINGW_PREFIX/share/licenses/zig/LICENSE"
+          
+          # Create package metadata for mingw-w64
           mkdir -p pkg/.MTREE
           cat > pkg/.MTREE/desc << EOF
           %NAME%
           mingw-w64-x86_64-zig
-
+          
           %VERSION%
           $ZIG_VERSION-1
-
+          
           %DESC%
           A general-purpose programming language and toolchain for maintaining robust, optimal, and reusable software
-
+          
           %URL%
           https://ziglang.org/
-
+          
           %ARCH%
           x86_64
-
+          
           %BUILDDATE%
           $(date +%s)
-
+          
           %PACKAGER%
           GitHub Actions
-
+          
           %SIZE%
           $(du -sb pkg | cut -f1)
-
+          
           %LICENSE%
           MIT
-
+          
           %DEPENDS%
           mingw-w64-x86_64-llvm
           mingw-w64-x86_64-clang
           mingw-w64-x86_64-lld
-
+          
           %PROVIDES%
           mingw-w64-x86_64-zig
           EOF
@@ -424,8 +516,12 @@ jobs:
         run: |
           echo "Creating mingw-w64 package archive..."
           cd zig-source/build/pkg
+          
+          # Create package using mingw-w64 naming convention
           tar -czf "../../mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.gz" .MTREE *
           cd ../..
+          
+          # Verify package was created
           if [ -f "mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.gz" ]; then
             echo "✓ Package created successfully"
             ls -lh "mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.gz"
@@ -442,17 +538,25 @@ jobs:
         run: |
           echo "Testing package installation..."
           cd zig-source
+          
+          # Install the package
           pacman -U --noconfirm "mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.gz"
+          
+          # Test installed compiler
           zig version
           zig targets
+          
+          # Test compilation with installed version
           cat > package_test.zig << 'EOF'
           const std = @import("std");
           pub fn main() void {
               std.debug.print("Package test successful!\n", .{});
           }
           EOF
+          
           zig build-exe package_test.zig
           ./package_test.exe
+          
           echo "✓ Package installation and testing completed successfully"
 
       - name: Upload build artifacts
@@ -496,6 +600,7 @@ jobs:
           echo "**Build Time:** $(date)" >> build-report.md
           echo "**Workflow Run:** ${{ github.run_id }}" >> build-report.md
           echo "" >> build-report.md
+          
           if [ "${{ job.status }}" = "success" ]; then
             echo "**Package:** mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.gz" >> build-report.md
             if [ -f "zig-source/mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.gz" ]; then
