@@ -65,30 +65,66 @@ jobs:
             mingw-w64-x86_64-gcc \
             mingw-w64-x86_64-curl-winssl \
             base-devel \
-            git
+            git \
+            which
           
-          # Refresh PATH to ensure new packages are available
-          export PATH="/mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin"
+          # Force PATH refresh and hash table reset
+          hash -r
           
-          # Verify critical build tools are installed
+          # Verify critical build tools are installed using direct paths first
           echo "Verifying build tools installation:"
-          echo "cmake path: $(which cmake || echo 'NOT FOUND')"
-          echo "ninja path: $(which ninja || echo 'NOT FOUND')"
-          echo "gcc path: $(which gcc || echo 'NOT FOUND')"
-          echo "curl path: $(which curl || echo 'NOT FOUND')"
           
-          # Test tool versions with proper error handling
-          if command -v cmake >/dev/null 2>&1; then
-            cmake --version | head -1 || echo "cmake version check failed"
+          # Check cmake
+          if [ -f "/mingw64/bin/cmake.exe" ]; then
+            echo "cmake found at: /mingw64/bin/cmake.exe"
+            /mingw64/bin/cmake.exe --version | head -1
+            CMAKE_FOUND=true
+          elif command -v cmake >/dev/null 2>&1; then
+            echo "cmake found in PATH: $(command -v cmake)"
+            cmake --version | head -1
+            CMAKE_FOUND=true
           else
-            echo "ERROR: cmake not found in PATH"
-            exit 1
+            echo "ERROR: cmake not found"
+            CMAKE_FOUND=false
           fi
           
-          if command -v ninja >/dev/null 2>&1; then
-            ninja --version || echo "ninja version check failed"
+          # Check ninja
+          if [ -f "/mingw64/bin/ninja.exe" ]; then
+            echo "ninja found at: /mingw64/bin/ninja.exe"
+            /mingw64/bin/ninja.exe --version
+            NINJA_FOUND=true
+          elif command -v ninja >/dev/null 2>&1; then
+            echo "ninja found in PATH: $(command -v ninja)"
+            ninja --version
+            NINJA_FOUND=true
           else
-            echo "ERROR: ninja not found in PATH"
+            echo "ERROR: ninja not found"
+            NINJA_FOUND=false
+          fi
+          
+          # Check gcc
+          if [ -f "/mingw64/bin/gcc.exe" ]; then
+            echo "gcc found at: /mingw64/bin/gcc.exe"
+            /mingw64/bin/gcc.exe --version | head -1
+          elif command -v gcc >/dev/null 2>&1; then
+            echo "gcc found in PATH: $(command -v gcc)"
+          else
+            echo "ERROR: gcc not found"
+          fi
+          
+          # Check curl
+          if [ -f "/mingw64/bin/curl.exe" ]; then
+            echo "curl found at: /mingw64/bin/curl.exe"
+          elif command -v curl >/dev/null 2>&1; then
+            echo "curl found in PATH: $(command -v curl)"
+          else
+            echo "ERROR: curl not found"
+          fi
+          
+          # Exit if critical tools missing
+          if [ "$CMAKE_FOUND" != "true" ] || [ "$NINJA_FOUND" != "true" ]; then
+            echo "Critical build tools missing. Listing /mingw64/bin contents:"
+            ls -la /mingw64/bin/ | grep -E "(cmake|ninja)" || echo "No cmake/ninja found"
             exit 1
           fi
 
@@ -116,13 +152,28 @@ jobs:
           
           if [[ $source_url == http* ]]; then
             echo "Downloading from: $source_url"
-            # Use curl with better error handling
-            if command -v curl >/dev/null 2>&1; then
-              curl -L --connect-timeout 30 --max-time 600 --retry 3 --retry-delay 5 -f -o zig-source.tar.xz "$source_url"
+            
+            # Try different curl locations
+            CURL_CMD=""
+            if [ -f "/mingw64/bin/curl.exe" ]; then
+              CURL_CMD="/mingw64/bin/curl.exe"
+            elif command -v curl >/dev/null 2>&1; then
+              CURL_CMD="curl"
             else
-              echo "ERROR: curl not found"
-              exit 1
+              echo "ERROR: curl not found anywhere"
+              echo "Attempting to install curl..."
+              pacman -S --noconfirm mingw-w64-x86_64-curl-winssl
+              if [ -f "/mingw64/bin/curl.exe" ]; then
+                CURL_CMD="/mingw64/bin/curl.exe"
+              else
+                echo "ERROR: curl installation failed"
+                exit 1
+              fi
             fi
+            
+            echo "Using curl at: $CURL_CMD"
+            $CURL_CMD -L --connect-timeout 30 --max-time 600 --retry 3 --retry-delay 5 -f -o zig-source.tar.xz "$source_url"
+            
           else
             echo "Error: Invalid URL: $source_url"
             exit 1
@@ -185,43 +236,37 @@ jobs:
         run: |
           echo "Starting CMake build (Stage 1)..."
           
-          # Verify tools are available with full paths
-          echo "Environment verification:"
-          echo "MSYSTEM: $MSYSTEM"
-          echo "PATH: $PATH"
-          echo "Working directory: $(pwd)"
+          # Determine tool paths explicitly
+          CMAKE_CMD=""
+          NINJA_CMD=""
           
-          # Check for required tools with explicit paths
           if [ -f "/mingw64/bin/cmake.exe" ]; then
             CMAKE_CMD="/mingw64/bin/cmake.exe"
-            echo "cmake found at: $CMAKE_CMD"
-            $CMAKE_CMD --version | head -1
           elif command -v cmake >/dev/null 2>&1; then
             CMAKE_CMD="cmake"
-            echo "cmake found in PATH: $(which cmake)"
-            $CMAKE_CMD --version | head -1
           else
-            echo "ERROR: cmake not found anywhere"
-            echo "Available executables in /mingw64/bin:"
-            ls -la /mingw64/bin/cmake* || echo "No cmake executables found"
+            echo "ERROR: cmake not found"
             exit 1
           fi
           
           if [ -f "/mingw64/bin/ninja.exe" ]; then
             NINJA_CMD="/mingw64/bin/ninja.exe"
-            echo "ninja found at: $NINJA_CMD"
-            $NINJA_CMD --version
           elif command -v ninja >/dev/null 2>&1; then
             NINJA_CMD="ninja"
-            echo "ninja found in PATH: $(which ninja)"
-            $NINJA_CMD --version
           else
-            echo "ERROR: ninja not found anywhere"
-            echo "Available executables in /mingw64/bin:"
-            ls -la /mingw64/bin/ninja* || echo "No ninja executables found"
+            echo "ERROR: ninja not found"
             exit 1
           fi
           
+          echo "Using CMAKE: $CMAKE_CMD"
+          echo "Using NINJA: $NINJA_CMD"
+          echo "Environment verification:"
+          echo "MSYSTEM: $MSYSTEM"
+          echo "PATH: $PATH"
+          echo "Working directory: $(pwd)"
+          
+          $CMAKE_CMD --version | head -1
+          $NINJA_CMD --version
           echo "gcc version: $(gcc --version | head -1)"
           
           # Check if source directory exists
