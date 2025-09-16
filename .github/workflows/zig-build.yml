@@ -24,7 +24,8 @@ jobs:
       - name: Setup Git for Windows SDK
         uses: git-for-windows/setup-git-for-windows-sdk@v1
         with:
-          flavor: makepkg-git
+          flavor: full
+          architecture: x86_64
 
       - name: Checkout repository
         uses: actions/checkout@v4
