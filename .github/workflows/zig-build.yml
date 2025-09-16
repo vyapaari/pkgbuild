@@ -265,9 +265,9 @@ jobs:
           echo "PATH: $PATH"
           echo "Working directory: $(pwd)"
           
-          $CMAKE_CMD --version | head -1
-          $NINJA_CMD --version
-          echo "gcc version: $(gcc --version | head -1)"
+          $CMAKE_CMD --version | head -1 || echo "cmake version check failed but proceeding"
+          $NINJA_CMD --version || echo "ninja version check failed but proceeding"
+          echo "gcc version: $(gcc --version | head -1 || echo 'gcc version check failed')"
           
           # Check if source directory exists
           if [ ! -d "zig-source" ]; then
