@@ -269,18 +269,27 @@ jobs:
           $NINJA_CMD --version || echo "ninja version check failed but proceeding"
           echo "gcc version: $(gcc --version | head -1 || echo 'gcc version check failed')"
           
-          # Check if source directory exists
-          if [ ! -d "zig-source" ]; then
-            echo "Error: zig-source directory not found"
-            echo "Current directory contents:"
-            ls -la
-            exit 1
-          fi
+          # Check if we're in the correct directory
+          cd zig-source/build || {
+            # If not, try to find and navigate to the correct directory
+            echo "Current directory: $(pwd)"
+            if [ -d "build" ]; then
+              cd build
+              echo "Moved to build directory: $(pwd)"
+            elif [ -d "../zig-source/build" ]; then
+              cd ../zig-source/build
+              echo "Moved to ../zig-source/build: $(pwd)"
+            else
+              echo "Error: Cannot find zig-source/build directory"
+              echo "Current directory contents:"
+              ls -la
+              echo "Parent directory contents:"
+              ls -la ..
+              exit 1
+            fi
+          }
           
-          cd zig-source/build
-          echo "Build directory: $(pwd)"
-          echo "Parent directory contents:"
-          ls -la ..
+          echo "Current directory: $(pwd)"
           
           # Configure with CMake using explicit command
           echo "Configuring with CMake..."
