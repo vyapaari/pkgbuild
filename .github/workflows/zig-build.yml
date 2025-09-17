@@ -229,6 +229,9 @@ jobs:
           pub const debug_verbose = false;
           pub const debug_optimize = false;
 
+          // Tracy profiler support
+          pub const enable_tracy = false;
+
           // Essential build configuration
           pub const enable_llvm = true;
           pub const enable_zlib = true;
@@ -267,8 +270,9 @@ jobs:
           pub const version_major = @ZIG_VERSION_MAJOR@; 
           pub const version_minor = @ZIG_VERSION_MINOR@; 
           pub const version_patch = @ZIG_VERSION_PATCH@;
-          pub const enable_debug_extensions = @import("builtin").have_segfault_handling_support;
+          pub const enable_debug_extensions = false;
           pub const debug_gpa = false;
+          pub const enable_tracy = false;
           EOF
 
       - name: Build Zig (Stage 1 - CMake)
@@ -383,33 +387,6 @@ jobs:
           
           echo "✓ $ZIG_EXECUTABLE built successfully"
           ./$ZIG_EXECUTABLE version || echo "Version check continued despite error"
-
-      - name: Download pre-built Zig for bootstrapping (fallback)
-        if: failure()
-        shell: bash
-        env:
-          MSYSTEM: MINGW64
-          PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
-        run: |
-          echo "CMake build failed, trying pre-built bootstrap approach..."
-          cd zig-source
-          
-          # Download pre-built Zig for Windows
-          curl -L "https://ziglang.org/download/$ZIG_VERSION/zig-windows-x86_64-$ZIG_VERSION.zip" -o zig-bootstrap.zip
-          unzip zig-bootstrap.zip
-          mv "zig-windows-x86_64-$ZIG_VERSION" zig-bootstrap
-          
-          # Use pre-built Zig to build from source
-          cd build
-          ../zig-bootstrap/zig.exe build --prefix stage3 --zig-lib-dir ../lib -Doptimize=ReleaseFast 2>&1 | tee bootstrap-build.log
-          
-          if [ -f "stage3/bin/zig.exe" ]; then
-            echo "✓ Bootstrap build successful"
-            ./stage3/bin/zig.exe version
-          else
-            echo "Bootstrap build failed"
-            exit 1
-          fi
 
       - name: Build Zig (Stage 2 - Self-hosted compiler)
         shell: bash
