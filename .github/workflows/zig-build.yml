@@ -209,27 +209,26 @@ jobs:
           echo "Build directory: $(pwd)" 
           ls -la ..
           
-          # Create a complete config.zig file with proper Zig syntax
-          # Create a more complete config.zig file
+          # Create a complete config.zig file with all required fields for Zig 0.15.1
           cat > config.zig << 'EOF'
+          // Version information
           pub const version_string = "0.15.1";
           pub const version_major = 0;
           pub const version_minor = 15;
           pub const version_patch = 1;
-    
-          // Required debug settings
+
+          // Debug configuration - ALL required fields
           pub const enable_debug_extensions = false;
           pub const debug_gpa = false;
-          pub const debug_allocator = false;    
+          pub const debug_allocator = false;
           pub const debug_bounds_check = false;
           pub const debug_safe_builtins = true;
-          pub const debug_stack_trace = true; 
+          pub const debug_stack_trace = true;
           pub const debug_safety = true;
-          pub const debug_verbose = false;  
+          pub const debug_verbose = false;
           pub const debug_optimize = false;
-         
 
-          // Other common settings
+          // Build configuration
           pub const enable_llvm = true;
           pub const enable_zlib = true;
           pub const enable_zstd = true;
@@ -238,38 +237,59 @@ jobs:
           pub const use_lld = true;
           pub const static_zlib = false;
           pub const static_zstd = false;
+
+          // Installation paths
           pub const install_prefix = "/mingw64";
           pub const lib_dir = "lib";
           pub const include_dir = "include";
           pub const bin_dir = "bin";
-          pub const libzig_dir = "lib/zig";   
+          pub const libzig_dir = "lib/zig";
+
+          // LLVM configuration
           pub const llvm_bin_dir = "bin";
           pub const llvm_lib_dir = "lib";
           pub const llvm_include_dir = "include";
+
+          // Clang configuration
           pub const clang_bin_dir = "bin";
-          pub const clang_lib_dir = "lib";  
+          pub const clang_lib_dir = "lib";
           pub const clang_include_dir = "include";
+
+          // LLD configuration
           pub const lld_bin_dir = "bin";
           pub const lld_lib_dir = "lib";
           pub const lld_include_dir = "include";
-          pub const zlib_lib_dir = "lib";   
+
+          // Zlib configuration
+          pub const zlib_lib_dir = "lib";
           pub const zlib_include_dir = "include";
-          pub const zstd_lib_dir = "lib";         
+
+          // Zstd configuration
+          pub const zstd_lib_dir = "lib";
           pub const zstd_include_dir = "include";
+
+          // System library usage
           pub const use_system_libs = true;
           pub const use_system_llvm = true;
           pub const use_system_zlib = true;
           pub const use_system_zstd = true;
-          pub const use_system_libc = true;    
+          pub const use_system_libc = true;
+
+          // Feature flags
           pub const verbose = false;
           pub const experimental = false;
           pub const enable_experimental = false;
-          pub const enable_tests = false; 
+          pub const enable_tests = false;
+          
+          // LibC++ related (disabled for mingw-w64)
           pub const enable_libcxx = false;
           pub const enable_libcxx_exceptions = false;
           pub const enable_libcxx_rtti = false;
           pub const enable_libcxx_filesystem = false;
           pub const enable_libcxx_abi = false;
+          pub const use_libcxx = false;
+
+          // Other library support (mostly disabled for simplicity)
           pub const enable_libunwind = false;
           pub const enable_libbacktrace = false;
           pub const enable_libedit = false;
@@ -277,35 +297,40 @@ jobs:
           pub const enable_libffi = false;
           pub const enable_libb2 = false;
           pub const enable_libc = false;
-          pub const use_libcxx = false;
           pub const use_libunwind = false;
           pub const use_libbacktrace = false;
           pub const use_libedit = false;
-          pub const use_libxml2 = false;  
+          pub const use_libxml2 = false;
           pub const use_libffi = false;
-          pub const use_libb2 = false;   
-          pub const use_cxx = false;      
-          pub const use_c = true; 
-          pub const use_cpp = false;   
+          pub const use_libb2 = false;
+
+          // Toolchain configuration
+          pub const use_cxx = false;
+          pub const use_c = true;
+          pub const use_cpp = false;
           pub const use_asm = false;
-          pub const use_linker = true;  
+          pub const use_linker = true;
           pub const use_lld_linker = true;
           pub const use_gnu_linker = false;
           pub const use_msvc_linker = false;
           pub const use_gold_linker = false;
-          pub const use_lld_cpp = false;  
+
+          // More specific toolchain settings
+          pub const use_lld_cpp = false;
           pub const use_gnu_cpp = false;
-          pub const use_msvc_cpp = false; 
-          pub const use_lld_c = false;  
+          pub const use_msvc_cpp = false;
+          pub const use_lld_c = false;
           pub const use_gnu_c = true;
-          pub const use_msvc_c = false; 
+          pub const use_msvc_c = false;
           pub const use_lld_asm = false;
           pub const use_gnu_asm = false;
-          pub const use_msvc_asm = false;   
+          pub const use_msvc_asm = false;
           pub const use_lld_link = true;
           pub const use_gnu_link = false;
           pub const use_msvc_link = false;
           pub const use_gold_link = false;
+
+          // Legacy settings for compatibility
           pub const use_lld = true;
           pub const use_gnu = false;
           pub const use_msvc = false;
@@ -318,16 +343,17 @@ jobs:
           pub const use_gnu_for_cpp = false;
           pub const use_msvc_for_cpp = false;
           pub const use_lld_for_c = false;
-          pub const use_gnu_for_c = true;   
+          pub const use_gnu_for_c = true;
           pub const use_msvc_for_c = false;
           pub const use_lld_for_asm = false;
           pub const use_gnu_for_asm = false;
           pub const use_msvc_for_asm = false;
-          pub const use_lld_for_link = true;  
+          pub const use_lld_for_link = true;
           pub const use_gnu_for_link = false;
           pub const use_msvc_for_link = false;
-          pub const use_gold_for_link = false;    
-          EOF 
+          pub const use_gold_for_link = false;
+          EOF
+
           echo "Verifying config.zig content:"
           cat config.zig
 
@@ -409,7 +435,7 @@ jobs:
           echo "Configuring with CMake..."
           MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
           $CMAKE_CMD .. -GNinja \
-            -DCMAKE_BUILD_TYPE=Releasesafe \
+            -DCMAKE_BUILD_TYPE=ReleaseSafe \
             -DCMAKE_INSTALL_PREFIX="$MINGW_PREFIX" \
             -DCMAKE_C_COMPILER=gcc \
             -DCMAKE_CXX_COMPILER=g++ \
