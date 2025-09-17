@@ -356,7 +356,8 @@ jobs:
 
           echo "Verifying config.zig content:"
           cat config.zig
-
+          echo "Minimal config files created."
+          
           # Create minimal config files that might be missing
           mkdir -p ../stage1
           cat > ../stage1/config.h.in << 'EOF'
@@ -376,8 +377,8 @@ jobs:
           pub const enable_debug_extensions = @hasDecl(@import("builtin"), "debug.have_segfault_handling_support");
           pub const debug_gpa = false; // Or a more appropriate default
           EOF
-          EOF
-
+          
+          
       - name: Build Zig (Stage 1 - CMake)
         shell: bash
         env:
