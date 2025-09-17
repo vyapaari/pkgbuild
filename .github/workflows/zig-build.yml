@@ -11,14 +11,14 @@ on:
 
 env:
   ZIG_VERSION: "0.15.1"
-  BUILD_JOBS: 2
+  BUILD_JOBS: 1
   MINGW_ARCH: mingw64
   MINGW_PREFIX: /mingw64
 
 jobs:
   build-zig:
     runs-on: windows-2022
-    timeout-minutes: 180
+    timeout-minutes: 240
 
     steps:
       - name: Setup Git for Windows SDK
@@ -26,6 +26,7 @@ jobs:
         with:
           flavor: full
           architecture: x86_64
+          cache: true
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -209,7 +210,7 @@ jobs:
           echo "Build directory: $(pwd)" 
           ls -la ..
           
-          # Create a complete config.zig file with all required fields for Zig 0.15.1
+          # Create minimal config.zig with only essential fields to fix build errors
           cat > config.zig << 'EOF'
           // Version information
           pub const version_string = "0.15.1";
@@ -217,7 +218,7 @@ jobs:
           pub const version_minor = 15;
           pub const version_patch = 1;
 
-          // Debug configuration - ALL required fields
+          // Required debug fields that were causing build failures
           pub const enable_debug_extensions = false;
           pub const debug_gpa = false;
           pub const debug_allocator = false;
@@ -228,136 +229,29 @@ jobs:
           pub const debug_verbose = false;
           pub const debug_optimize = false;
 
-          // Build configuration
+          // Essential build configuration
           pub const enable_llvm = true;
           pub const enable_zlib = true;
           pub const enable_zstd = true;
-          pub const target = "x86_64-windows-gnu";
-          pub const build_type = "ReleaseSafe";
-          pub const use_lld = true;
+          pub const build_type = "Release";
+          pub const use_lld = false;
           pub const static_zlib = false;
           pub const static_zstd = false;
 
-          // Installation paths
-          pub const install_prefix = "/mingw64";
-          pub const lib_dir = "lib";
-          pub const include_dir = "include";
-          pub const bin_dir = "bin";
-          pub const libzig_dir = "lib/zig";
-
-          // LLVM configuration
-          pub const llvm_bin_dir = "bin";
-          pub const llvm_lib_dir = "lib";
-          pub const llvm_include_dir = "include";
-
-          // Clang configuration
-          pub const clang_bin_dir = "bin";
-          pub const clang_lib_dir = "lib";
-          pub const clang_include_dir = "include";
-
-          // LLD configuration
-          pub const lld_bin_dir = "bin";
-          pub const lld_lib_dir = "lib";
-          pub const lld_include_dir = "include";
-
-          // Zlib configuration
-          pub const zlib_lib_dir = "lib";
-          pub const zlib_include_dir = "include";
-
-          // Zstd configuration
-          pub const zstd_lib_dir = "lib";
-          pub const zstd_include_dir = "include";
-
           // System library usage
-          pub const use_system_libs = true;
           pub const use_system_llvm = true;
           pub const use_system_zlib = true;
           pub const use_system_zstd = true;
-          pub const use_system_libc = true;
 
-          // Feature flags
-          pub const verbose = false;
-          pub const experimental = false;
-          pub const enable_experimental = false;
+          // Disable optional features for faster builds
           pub const enable_tests = false;
-          
-          // LibC++ related (disabled for mingw-w64)
-          pub const enable_libcxx = false;
-          pub const enable_libcxx_exceptions = false;
-          pub const enable_libcxx_rtti = false;
-          pub const enable_libcxx_filesystem = false;
-          pub const enable_libcxx_abi = false;
-          pub const use_libcxx = false;
-
-          // Other library support (mostly disabled for simplicity)
-          pub const enable_libunwind = false;
-          pub const enable_libbacktrace = false;
-          pub const enable_libedit = false;
-          pub const enable_libxml2 = false;
-          pub const enable_libffi = false;
-          pub const enable_libb2 = false;
-          pub const enable_libc = false;
-          pub const use_libunwind = false;
-          pub const use_libbacktrace = false;
-          pub const use_libedit = false;
-          pub const use_libxml2 = false;
-          pub const use_libffi = false;
-          pub const use_libb2 = false;
-
-          // Toolchain configuration
-          pub const use_cxx = false;
-          pub const use_c = true;
-          pub const use_cpp = false;
-          pub const use_asm = false;
-          pub const use_linker = true;
-          pub const use_lld_linker = true;
-          pub const use_gnu_linker = false;
-          pub const use_msvc_linker = false;
-          pub const use_gold_linker = false;
-
-          // More specific toolchain settings
-          pub const use_lld_cpp = false;
-          pub const use_gnu_cpp = false;
-          pub const use_msvc_cpp = false;
-          pub const use_lld_c = false;
-          pub const use_gnu_c = true;
-          pub const use_msvc_c = false;
-          pub const use_lld_asm = false;
-          pub const use_gnu_asm = false;
-          pub const use_msvc_asm = false;
-          pub const use_lld_link = true;
-          pub const use_gnu_link = false;
-          pub const use_msvc_link = false;
-          pub const use_gold_link = false;
-
-          // Legacy settings for compatibility
-          pub const use_lld = true;
-          pub const use_gnu = false;
-          pub const use_msvc = false;
-          pub const use_gold = false;
-          pub const use_lld_for_linking = true;
-          pub const use_gnu_for_linking = false;
-          pub const use_msvc_for_linking = false;
-          pub const use_gold_for_linking = false;
-          pub const use_lld_for_cpp = false;
-          pub const use_gnu_for_cpp = false;
-          pub const use_msvc_for_cpp = false;
-          pub const use_lld_for_c = false;
-          pub const use_gnu_for_c = true;
-          pub const use_msvc_for_c = false;
-          pub const use_lld_for_asm = false;
-          pub const use_gnu_for_asm = false;
-          pub const use_msvc_for_asm = false;
-          pub const use_lld_for_link = true;
-          pub const use_gnu_for_link = false;
-          pub const use_msvc_for_link = false;
-          pub const use_gold_for_link = false;
+          pub const enable_experimental = false;
+          pub const verbose = false;
           EOF
 
           echo "Verifying config.zig content:"
           cat config.zig
-          echo "Minimal config files created."
-          
+
           # Create minimal config files that might be missing
           mkdir -p ../stage1
           cat > ../stage1/config.h.in << 'EOF'
@@ -366,19 +260,17 @@ jobs:
           #define ZIG_VERSION_MAJOR @ZIG_VERSION_MAJOR@
           #define ZIG_VERSION_MINOR @ZIG_VERSION_MINOR@
           #define ZIG_VERSION_PATCH @ZIG_VERSION_PATCH@
-        
+          EOF
 
           cat > ../stage1/config.zig.in << 'EOF'
-          pub const version_string = "@ZIG_VERSION@";
-          pub const version_major = @ZIG_VERSION_MAJOR@;
-          pub const version_minor = @ZIG_VERSION_MINOR@;
+          pub const version_string = "@ZIG_VERSION@"; 
+          pub const version_major = @ZIG_VERSION_MAJOR@; 
+          pub const version_minor = @ZIG_VERSION_MINOR@; 
           pub const version_patch = @ZIG_VERSION_PATCH@;
-
-          pub const enable_debug_extensions = @hasDecl(@import("builtin"), "debug.have_segfault_handling_support");
-          pub const debug_gpa = false; // Or a more appropriate default
+          pub const enable_debug_extensions = @import("builtin").have_segfault_handling_support;
+          pub const debug_gpa = false;
           EOF
-          
-          
+
       - name: Build Zig (Stage 1 - CMake)
         shell: bash
         env:
@@ -440,15 +332,17 @@ jobs:
           echo "Configuring with CMake..."
           MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
           $CMAKE_CMD .. -GNinja \
-            -DCMAKE_BUILD_TYPE=ReleaseSafe \
+            -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_INSTALL_PREFIX="$MINGW_PREFIX" \
             -DCMAKE_C_COMPILER=gcc \
             -DCMAKE_CXX_COMPILER=g++ \
             -DZIG_SHARED_LLVM=ON \
-            -DZIG_USE_LLD=ON \
             -DZIG_VERSION="$ZIG_VERSION" \
             -DZIG_STATIC_ZLIB=OFF \
-            -DZIG_STATIC_ZSTD=OFF 2>&1 | tee cmake-configure.log
+            -DZIG_STATIC_ZSTD=OFF \
+            -DCMAKE_C_FLAGS="-O2 -DNDEBUG" \
+            -DCMAKE_CXX_FLAGS="-O2 -DNDEBUG" \
+            -DZIG_NO_LIB=ON 2>&1 | tee cmake-configure.log
           
           if [ $? -ne 0 ]; then
             echo "CMake configuration failed. Full log:"
@@ -458,8 +352,8 @@ jobs:
             exit 1
           fi
           
-          echo "Building with limited parallelism for memory management..."
-          $NINJA_CMD -j"$BUILD_JOBS" -l"$BUILD_JOBS" 2>&1 | tee cmake-build.log
+          echo "Building with single-threaded linking for stability..."
+          $NINJA_CMD -j1 2>&1 | tee cmake-build.log
           
           if [ $? -ne 0 ]; then
             echo "Ninja build failed. Last 100 lines of log:"
@@ -489,6 +383,33 @@ jobs:
           
           echo "✓ $ZIG_EXECUTABLE built successfully"
           ./$ZIG_EXECUTABLE version || echo "Version check continued despite error"
+
+      - name: Download pre-built Zig for bootstrapping (fallback)
+        if: failure()
+        shell: bash
+        env:
+          MSYSTEM: MINGW64
+          PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
+        run: |
+          echo "CMake build failed, trying pre-built bootstrap approach..."
+          cd zig-source
+          
+          # Download pre-built Zig for Windows
+          curl -L "https://ziglang.org/download/$ZIG_VERSION/zig-windows-x86_64-$ZIG_VERSION.zip" -o zig-bootstrap.zip
+          unzip zig-bootstrap.zip
+          mv "zig-windows-x86_64-$ZIG_VERSION" zig-bootstrap
+          
+          # Use pre-built Zig to build from source
+          cd build
+          ../zig-bootstrap/zig.exe build --prefix stage3 --zig-lib-dir ../lib -Doptimize=ReleaseFast 2>&1 | tee bootstrap-build.log
+          
+          if [ -f "stage3/bin/zig.exe" ]; then
+            echo "✓ Bootstrap build successful"
+            ./stage3/bin/zig.exe version
+          else
+            echo "Bootstrap build failed"
+            exit 1
+          fi
 
       - name: Build Zig (Stage 2 - Self-hosted compiler)
         shell: bash
