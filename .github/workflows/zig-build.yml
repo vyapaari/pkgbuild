@@ -17,7 +17,7 @@ env:
 
 jobs:
   build-zig:
-    runs-on: windows-latest
+    runs-on: windows-2022
     timeout-minutes: 180
 
     steps:
@@ -56,15 +56,7 @@ jobs:
           pacman -Sy --noconfirm
           echo "Installing Mingw-w64 build dependencies..."
           pacman -S --noconfirm --needed \
-            mingw-w64-x86_64-llvm \
-            mingw-w64-x86_64-clang \
-            mingw-w64-x86_64-lld \
-            mingw-w64-x86_64-zlib \
-            mingw-w64-x86_64-zstd \
-            mingw-w64-x86_64-cmake \
-            mingw-w64-x86_64-ninja \
-            mingw-w64-x86_64-gcc \
-            mingw-w64-x86_64-curl-winssl \
+            mingw-w64-x86_64-{llvm,clang,lld,zlib,zstd,cmake,ninja,gcc,curl-winssl} \
             base-devel \
             git \
             which
@@ -208,13 +200,33 @@ jobs:
           MSYSTEM: MINGW64
           PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
         run: |
-          echo "Preparing build environment..."
+          set -euo pipefail
+          echo "Preparing build environment"
           cd zig-source
-          
           # Create build directory
           mkdir -p build
           cd build
+          echo "Build directory: $(pwd)" 
+          ls -la ..
           
+          # Create a complete config.zig file with proper Zig syntax
+          cat > config.zig << 'EOF'
+          pub const version_string = "0.15.1";
+          pub const version_major = 0;
+          pub const version_minor = 15;
+          pub const version_patch = 1;
+          pub const enable_llvm = true;
+          pub const enable_zlib = true;
+          pub const enable_zstd = true;
+          pub const target = "x86_64-windows-gnu";
+          pub const build_type = "ReleaseSafe";
+          pub const enable_debug_extensions = false;
+          pub const debug_gpa = false;
+          EOF
+
+          echo "Verifying config.zig content:"
+          cat config.zig
+
           # Create minimal config files that might be missing
           mkdir -p ../stage1
           cat > ../stage1/config.h.in << 'EOF'
@@ -293,7 +305,7 @@ jobs:
           echo "Configuring with CMake..."
           MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
           $CMAKE_CMD .. -GNinja \
-            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_BUILD_TYPE=Releasesafe \
             -DCMAKE_INSTALL_PREFIX="$MINGW_PREFIX" \
             -DCMAKE_C_COMPILER=gcc \
             -DCMAKE_CXX_COMPILER=g++ \
