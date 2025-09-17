@@ -365,13 +365,17 @@ jobs:
           #define ZIG_VERSION_MAJOR @ZIG_VERSION_MAJOR@
           #define ZIG_VERSION_MINOR @ZIG_VERSION_MINOR@
           #define ZIG_VERSION_PATCH @ZIG_VERSION_PATCH@
-          EOF
+        
 
           cat > ../stage1/config.zig.in << 'EOF'
           pub const version_string = "@ZIG_VERSION@";
           pub const version_major = @ZIG_VERSION_MAJOR@;
           pub const version_minor = @ZIG_VERSION_MINOR@;
           pub const version_patch = @ZIG_VERSION_PATCH@;
+
+          pub const enable_debug_extensions = @hasDecl(@import("builtin"), "debug.have_segfault_handling_support");
+          pub const debug_gpa = false; // Or a more appropriate default
+          EOF
           EOF
 
       - name: Build Zig (Stage 1 - CMake)
