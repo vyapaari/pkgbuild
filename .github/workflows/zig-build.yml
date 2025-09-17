@@ -214,6 +214,7 @@ jobs:
           cat > config.zig << 'EOF'
           // Version information
           pub const version_string = "0.15.1";
+          pub const version = "0.15.1";
           pub const version_major = 0;
           pub const version_minor = 15;
           pub const version_patch = 1;
@@ -231,6 +232,9 @@ jobs:
 
           // Tracy profiler support
           pub const enable_tracy = false;
+
+          // LLVM support - required field
+          pub const have_llvm = true;
 
           // Essential build configuration
           pub const enable_llvm = true;
