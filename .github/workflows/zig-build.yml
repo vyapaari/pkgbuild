@@ -47,6 +47,18 @@ jobs:
           pwd
           ls -la
 
+      - name: Cache pacman packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            /var/cache/pacman/pkg
+            /mingw64/bin
+            /mingw64/lib
+            /mingw64/include
+          key: mingw64-deps-${{ runner.os }}-${{ hashFiles('.github/workflows/zig-build.yml') }}
+          restore-keys: |
+            mingw64-deps-${{ runner.os }}-
+
       - name: Install build dependencies
         shell: bash
         env:
@@ -127,6 +139,16 @@ jobs:
           fi
           
           echo "All critical build tools found."
+
+      - name: Cache Zig source
+        uses: actions/cache@v4
+        with:
+          path: |
+            zig-source.tar.xz
+            zig-source/
+          key: zig-source-${{ env.ZIG_VERSION }}-${{ hashFiles('PKGBUILD') }}
+          restore-keys: |
+            zig-source-${{ env.ZIG_VERSION }}-
 
       - name: Download and extract Zig source
         shell: bash
@@ -232,6 +254,9 @@ jobs:
 
           // Tracy profiler support
           pub const enable_tracy = false;
+
+          // Logging support
+          pub const enable_logging = false;
 
           // LLVM support - required field
           pub const have_llvm = true;
