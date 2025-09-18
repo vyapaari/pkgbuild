@@ -246,116 +246,10 @@ jobs:
           echo "Build directory: $(pwd)" 
           ls -la ..
           
-          # Create minimal config.zig with only essential fields to fix build errors
-          cat > config.zig << 'EOF'
-          // Version information
-          pub const version_string = "0.15.1";
-          pub const version = "0.15.1";
-          pub const version_major = 0;
-          pub const version_minor = 15;
-          pub const version_patch = 1;
-
-          // LLVM support - critical field that was missing
-          pub const have_llvm = true;
-
-          // Debug and logging configuration
-          pub const enable_debug_extensions = false;
-          pub const debug_gpa = false;
-          pub const debug_allocator = false;  
-          pub const debug_bounds_check = false;
-          pub const debug_safe_builtins = true;
-          pub const debug_stack_trace = true;
-          pub const debug_safety = true;
-          pub const debug_verbose = false;
-          pub const debug_optimize = false;
-
-          // Logging support - another missing field
-          pub const enable_logging = false;
-
-          // Tracy profiler support
-          pub const enable_tracy = false;
-
-          // Essential build configuration
-          pub const enable_llvm = true;
-          pub const enable_zlib = true;
-          pub const enable_zstd = true;
-          pub const build_type = "Release";
-          pub const use_lld = false;
-          pub const static_zlib = false;
-          pub const static_zstd = false;
-
-          // Path configuration
-          pub const install_prefix = "/mingw64";
-          pub const lib_dir = "lib";
-          pub const include_dir = "include";
-          pub const bin_dir = "bin";
-          pub const libzig_dir = "lib/zig";
-
-          // LLVM path configuration
-          pub const llvm_bin_dir = "bin";
-          pub const llvm_lib_dir = "lib";
-          pub const llvm_include_dir = "include";
-
-          // Clang path configuration
-          pub const clang_bin_dir = "bin";
-          pub const clang_lib_dir = "lib";
-          pub const clang_include_dir = "include";
-
-          // LLD path configuration 
-          pub const lld_bin_dir = "bin";
-          pub const lld_lib_dir = "lib";
-          pub const lld_include_dir = "include";
-
-          // Library paths
-          pub const zlib_lib_dir = "lib";
-          pub const zlib_include_dir = "include";
-          pub const zstd_lib_dir = "lib";
-          pub const zstd_include_dir = "include";
-
-          // Linker configuration
-          pub const use_lld_linker = true;
-          pub const use_gnu_linker = false;
-          pub const use_msvc_linker = false;
-          pub const use_gold_linker = false;
-
-          // System library usage
-          pub const use_system_llvm = true;
-          pub const use_system_zlib = true;
-          pub const use_system_zstd = true;
-          pub const use_system_libc = true;
-
-          // Disable optional features for faster builds
-          pub const enable_tests = false;
-          pub const enable_experimental = false;
-          pub const verbose = false;
-
-          // Additional fields that might be referenced
-          pub const is_stage1 = false;
-          pub const only_c = false;
-          pub const only_cpp = false;
-          pub const force_gpa = false;
-          pub const sanitize_c = false;
-          pub const code_model = "default";
-          pub const pic = false;
-          pub const pie = false;
-          pub const red_zone = true;
-          pub const omit_frame_pointer = false;
-          pub const single_threaded = false;
-          pub const strip = false;
-          pub const link_libc = false;
-          pub const link_libcpp = false;
-          pub const function_sections = false;
-          pub const no_builtin = false;
-          pub const runtime_safety = true;
-          pub const test_filter = "";
-          pub const test_name_prefix = "";
-          EOF
-
-          echo "Verifying config.zig content:"
-          cat config.zig
-
           # Create minimal config files that might be missing
           mkdir -p ../stage1
+          
+          # Complete config.h.in with all variables
           cat > ../stage1/config.h.in << 'EOF'
           #pragma once
 
@@ -366,65 +260,65 @@ jobs:
           #define ZIG_VERSION_PATCH @ZIG_VERSION_PATCH@
 
           // LLVM support - critical for build
-          #define ZIG_HAVE_LLVM 1
+          #define ZIG_HAVE_LLVM @ZIG_HAVE_LLVM@
 
           // Debug and logging configuration
-          #define ZIG_ENABLE_DEBUG_EXTENSIONS 0
-          #define ZIG_DEBUG_GPA 0
-          #define ZIG_DEBUG_ALLOCATOR 0
-          #define ZIG_DEBUG_BOUNDS_CHECK 0
-          #define ZIG_DEBUG_SAFE_BUILTINS 1
-          #define ZIG_DEBUG_STACK_TRACE 1
-          #define ZIG_DEBUG_SAFETY 1
-          #define ZIG_DEBUG_VERBOSE 0
-          #define ZIG_DEBUG_OPTIMIZE 0
+          #define ZIG_ENABLE_DEBUG_EXTENSIONS @ZIG_ENABLE_DEBUG_EXTENSIONS@
+          #define ZIG_DEBUG_GPA @ZIG_DEBUG_GPA@
+          #define ZIG_DEBUG_ALLOCATOR @ZIG_DEBUG_ALLOCATOR@
+          #define ZIG_DEBUG_BOUNDS_CHECK @ZIG_DEBUG_BOUNDS_CHECK@
+          #define ZIG_DEBUG_SAFE_BUILTINS @ZIG_DEBUG_SAFE_BUILTINS@
+          #define ZIG_DEBUG_STACK_TRACE @ZIG_DEBUG_STACK_TRACE@
+          #define ZIG_DEBUG_SAFETY @ZIG_DEBUG_SAFETY@
+          #define ZIG_DEBUG_VERBOSE @ZIG_DEBUG_VERBOSE@
+          #define ZIG_DEBUG_OPTIMIZE @ZIG_DEBUG_OPTIMIZE@
 
           // Logging support
-          #define ZIG_ENABLE_LOGGING 0
+          #define ZIG_ENABLE_LOGGING @ZIG_ENABLE_LOGGING@
 
           // Tracy profiler support
-          #define ZIG_ENABLE_TRACY 0
+          #define ZIG_ENABLE_TRACY @ZIG_ENABLE_TRACY@
 
           // Feature flags
-          #define ZIG_ENABLE_LLVM 1
-          #define ZIG_ENABLE_ZLIB 1
-          #define ZIG_ENABLE_ZSTD 1
-          #define ZIG_STATIC_ZLIB 0
-          #define ZIG_STATIC_ZSTD 0
-          #define ZIG_USE_LLD 0
+          #define ZIG_ENABLE_LLVM @ZIG_ENABLE_LLVM@
+          #define ZIG_ENABLE_ZLIB @ZIG_ENABLE_ZLIB@
+          #define ZIG_ENABLE_ZSTD @ZIG_ENABLE_ZSTD@
+          #define ZIG_STATIC_ZLIB @ZIG_STATIC_ZLIB@
+          #define ZIG_STATIC_ZSTD @ZIG_STATIC_ZSTD@
+          #define ZIG_USE_LLD @ZIG_USE_LLD@
 
           // Build type
-          #define ZIG_BUILD_TYPE "Release"
+          #define ZIG_BUILD_TYPE "@CMAKE_BUILD_TYPE@"
 
           // System library usage
-          #define ZIG_USE_SYSTEM_LLVM 1
-          #define ZIG_USE_SYSTEM_ZLIB 1
-          #define ZIG_USE_SYSTEM_ZSTD 1
-          #define ZIG_USE_SYSTEM_LIBC 1
+          #define ZIG_USE_SYSTEM_LLVM @ZIG_USE_SYSTEM_LLVM@
+          #define ZIG_USE_SYSTEM_ZLIB @ZIG_USE_SYSTEM_ZLIB@
+          #define ZIG_USE_SYSTEM_ZSTD @ZIG_USE_SYSTEM_ZSTD@
+          #define ZIG_USE_SYSTEM_LIBC @ZIG_USE_SYSTEM_LIBC@
 
           // Optional features
-          #define ZIG_ENABLE_TESTS 0
-          #define ZIG_ENABLE_EXPERIMENTAL 0
-          #define ZIG_VERBOSE 0
+          #define ZIG_ENABLE_TESTS @ZIG_ENABLE_TESTS@
+          #define ZIG_ENABLE_EXPERIMENTAL @ZIG_ENABLE_EXPERIMENTAL@
+          #define ZIG_VERBOSE @ZIG_VERBOSE@
 
           // Additional configuration
-          #define ZIG_IS_STAGE1 0
-          #define ZIG_ONLY_C 0
-          #define ZIG_ONLY_CPP 0
-          #define ZIG_FORCE_GPA 0
-          #define ZIG_SANITIZE_C 0
-          #define ZIG_CODE_MODEL "default"
-          #define ZIG_PIC 0
-          #define ZIG_PIE 0
-          #define ZIG_RED_ZONE 1
-          #define ZIG_OMIT_FRAME_POINTER 0
-          #define ZIG_SINGLE_THREADED 0
-          #define ZIG_STRIP 0
-          #define ZIG_LINK_LIBC 0
-          #define ZIG_LINK_LIBCPP 0
-          #define ZIG_FUNCTION_SECTIONS 0
-          #define ZIG_NO_BUILTIN 0
-          #define ZIG_RUNTIME_SAFETY 1
+          #define ZIG_IS_STAGE1 @ZIG_IS_STAGE1@
+          #define ZIG_ONLY_C @ZIG_ONLY_C@
+          #define ZIG_ONLY_CPP @ZIG_ONLY_CPP@
+          #define ZIG_FORCE_GPA @ZIG_FORCE_GPA@
+          #define ZIG_SANITIZE_C @ZIG_SANITIZE_C@
+          #define ZIG_CODE_MODEL "@ZIG_CODE_MODEL@"
+          #define ZIG_PIC @ZIG_PIC@
+          #define ZIG_PIE @ZIG_PIE@
+          #define ZIG_RED_ZONE @ZIG_RED_ZONE@
+          #define ZIG_OMIT_FRAME_POterior @ZIG_OMIT_FRAME_POINTER@
+          #define ZIG_SINGLE_THREADED @ZIG_SINGLE_THREADED@
+          #define ZIG_STRIP @ZIG_STRIP@
+          #define ZIG_LINK_LIBC @ZIG_LINK_LIBC@
+          #define ZIG_LINK_LIBCPP @ZIG_LINK_LIBCPP@
+          #define ZIG_FUNCTION_SECTIONS @ZIG_FUNCTION_SECTIONS@
+          #define ZIG_NO_BUILTIN @ZIG_NO_BUILTIN@
+          #define ZIG_RUNTIME_SAFETY @ZIG_RUNTIME_SAFETY@
 
           // Path configuration (will be substituted by CMake)
           #define ZIG_INSTALL_PREFIX "@CMAKE_INSTALL_PREFIX@"
@@ -453,9 +347,26 @@ jobs:
           #define ZIG_ZLIB_INCLUDE_DIR "@ZLIB_INCLUDE_DIR@"
           #define ZIG_ZSTD_LIB_DIR "@ZSTD_LIB_DIR@"
           #define ZIG_ZSTD_INCLUDE_DIR "@ZSTD_INCLUDE_DIR@"
+
+          // Test configuration
+          #define ZIG_TEST_FILTER "@ZIG_TEST_FILTER@"
+          #define ZIG_TEST_NAME_PREFIX "@ZIG_TEST_NAME_PREFIX@"
           EOF
 
+          # Simple stage1 config.zig.in
           cat > ../stage1/config.zig.in << 'EOF'
+          pub const version_string = "@ZIG_VERSION@"; 
+          pub const version = "@ZIG_VERSION@";
+          pub const version_major = @ZIG_VERSION_MAJOR@; 
+          pub const version_minor = @ZIG_VERSION_MINOR@; 
+          pub const version_patch = @ZIG_VERSION_PATCH@;
+          pub const enable_debug_extensions = false;
+          pub const debug_gpa = false;
+          pub const enable_tracy = false;
+          EOF
+          
+          # Create main config.zig.in for CMake to process (only once!)
+          cat > config.zig.in << 'EOF'
           // Version information
           pub const version_string = "@ZIG_VERSION@";
           pub const version = "@ZIG_VERSION@";
@@ -492,7 +403,7 @@ jobs:
           pub const use_lld = @ZIG_USE_LLD@;
 
           // Build type
-          pub const build_type = @ZIG_BUILD_TYPE@;
+          pub const build_type = "@CMAKE_BUILD_TYPE@";
 
           // System library usage
           pub const use_system_llvm = @ZIG_USE_SYSTEM_LLVM@;
@@ -511,7 +422,7 @@ jobs:
           pub const only_cpp = @ZIG_ONLY_CPP@;
           pub const force_gpa = @ZIG_FORCE_GPA@;
           pub const sanitize_c = @ZIG_SANITIZE_C@;
-          pub const code_model = @ZIG_CODE_MODEL@;
+          pub const code_model = "@ZIG_CODE_MODEL@";
           pub const pic = @ZIG_PIC@;
           pub const pie = @ZIG_PIE@;
           pub const red_zone = @ZIG_RED_ZONE@;
@@ -525,32 +436,32 @@ jobs:
           pub const runtime_safety = @ZIG_RUNTIME_SAFETY@;
 
           // Path configuration
-          pub const install_prefix = @ZIG_INSTALL_PREFIX@;
-          pub const lib_dir = @ZIG_LIB_DIR@;
-          pub const include_dir = @ZIG_INCLUDE_DIR@;
-          pub const bin_dir = @ZIG_BIN_DIR@;
-          pub const libzig_dir = @ZIG_LIBZIG_DIR@;
+          pub const install_prefix = "@CMAKE_INSTALL_PREFIX@";
+          pub const lib_dir = "@LIB_DIR@";
+          pub const include_dir = "@INCLUDE_DIR@";
+          pub const bin_dir = "@BIN_DIR@";
+          pub const libzig_dir = "@LIBZIG_DIR@";
 
           // LLVM paths
-          pub const llvm_bin_dir = @ZIG_LLVM_BIN_DIR@;
-          pub const llvm_lib_dir = @ZIG_LLVM_LIB_DIR@;
-          pub const llvm_include_dir = @ZIG_LLVM_INCLUDE_DIR@;
+          pub const llvm_bin_dir = "@LLVM_BIN_DIR@";
+          pub const llvm_lib_dir = "@LLVM_LIB_DIR@";
+          pub const llvm_include_dir = "@LLVM_INCLUDE_DIR@";
 
           // Clang paths
-          pub const clang_bin_dir = @ZIG_CLANG_BIN_DIR@;
-          pub const clang_lib_dir = @ZIG_CLANG_LIB_DIR@;
-          pub const clang_include_dir = @ZIG_CLANG_INCLUDE_DIR@;
+          pub const clang_bin_dir = "@CLANG_BIN_DIR@";
+          pub const clang_lib_dir = "@CLANG_LIB_DIR@";
+          pub const clang_include_dir = "@CLANG_INCLUDE_DIR@";
 
           // LLD paths
-          pub const lld_bin_dir = @ZIG_LLD_BIN_DIR@;
-          pub const lld_lib_dir = @ZIG_LLD_LIB_DIR@;
-          pub const lld_include_dir = @ZIG_LLD_INCLUDE_DIR@;
+          pub const lld_bin_dir = "@LLD_BIN_DIR@";
+          pub const lld_lib_dir = "@LLD_LIB_DIR@";
+          pub const lld_include_dir = "@LLD_INCLUDE_DIR@";
 
           // Library paths
-          pub const zlib_lib_dir = @ZIG_ZLIB_LIB_DIR@;
-          pub const zlib_include_dir = @ZIG_ZLIB_INCLUDE_DIR@;
-          pub const zstd_lib_dir = @ZIG_ZSTD_LIB_DIR@;
-          pub const zstd_include_dir = @ZIG_ZSTD_INCLUDE_DIR@;
+          pub const zlib_lib_dir = "@ZLIB_LIB_DIR@";
+          pub const zlib_include_dir = "@ZLIB_INCLUDE_DIR@";
+          pub const zstd_lib_dir = "@ZSTD_LIB_DIR@";
+          pub const zstd_include_dir = "@ZSTD_INCLUDE_DIR@";
 
           // Linker configuration
           pub const use_lld_linker = true;
@@ -559,8 +470,8 @@ jobs:
           pub const use_gold_linker = false;
 
           // Test configuration
-          pub const test_filter = @ZIG_TEST_FILTER@;
-          pub const test_name_prefix = @ZIG_TEST_NAME_PREFIX@;
+          pub const test_filter = "@ZIG_TEST_FILTER@";
+          pub const test_name_prefix = "@ZIG_TEST_NAME_PREFIX@";
           EOF
           
       - name: Build Zig (Stage 1 - CMake)
@@ -696,8 +607,19 @@ jobs:
           -DZIG_RUNTIME_SAFETY=1 \
           -DZIG_TEST_FILTER="" \
           -DZIG_TEST_NAME_PREFIX="" \
-          -DZIG_NO_LIB=ON \
+          -DZIG_NO_LIB=ON \ 
+          -DCONFIG_ZIG_IN="config.zig.in" \ 
+          -DCONFIG_ZIG_OUT="config.zig" \
           2>&1 | tee cmake-configure.log
+
+          # Verify config.zig was generated properly
+          if [ -f "config.zig" ]; then
+            echo "config.zig generated successfully:"
+            head -20 config.zig
+          else
+            echo "ERROR: config.zig was not generated"
+            exit 1
+          fi
           
           if [ $? -ne 0 ]; then
             echo "CMake configuration failed. Full log:"
