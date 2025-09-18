@@ -47,6 +47,11 @@ jobs:
           pwd
           ls -la
 
+      - name: Configure pacman mirror
+        shell: bash
+        run: |
+          echo "Configuring faster pacman mirror..."
+          
       - name: Cache pacman packages
         uses: actions/cache@v4
         with:
