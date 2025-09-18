@@ -55,7 +55,7 @@ jobs:
             /mingw64/bin
             /mingw64/lib
             /mingw64/include
-          key: mingw64-deps-${{ runner.os }}-${{ hashFiles('PKGBUILD', '.github/workflows/zig-build.yml') }}
+          key: mingw64-deps-${{ runner.os }}-${{ hashFiles('PKGBUILD') }}
           restore-keys: |
             mingw64-deps-${{ runner.os }}-
 
@@ -160,9 +160,9 @@ jobs:
           path: |
             zig-source.tar.xz
             zig-source/
-          key: zig-source-${{ env.ZIG_VERSION }}-${{ hashFiles('PKGBUILD') }}
+          key: zig-source-${{ env.ZIG_VERSION }}
           restore-keys: |
-            zig-source-${{ env.ZIG_VERSION }}-
+            zig-source-
 
       - name: Download and extract Zig source
         shell: bash
@@ -608,24 +608,26 @@ jobs:
           -DZIG_TEST_FILTER="" \
           -DZIG_TEST_NAME_PREFIX="" \
           -DZIG_NO_LIB=ON \ 
-          -DCONFIG_ZIG_IN="config.zig.in" \ 
-          -DCONFIG_ZIG_OUT="config.zig" \
           2>&1 | tee cmake-configure.log
 
-          # Verify config.zig was generated properly
+          # Verify config files were generated properly
           if [ -f "config.zig" ]; then
             echo "config.zig generated successfully:"
-            head -20 config.zig
+            head -10 config.zig
           else
             echo "ERROR: config.zig was not generated"
+            echo "Checking for config.zig.in:"
+            ls -la config.zig*
             exit 1
           fi
-          
-          if [ $? -ne 0 ]; then
-            echo "CMake configuration failed. Full log:"
-            cat cmake-configure.log
-            echo "CMake files in build directory:"
-            ls -la CMake* || echo "No CMake files found"
+
+          if [ -f "config.h" ]; then
+            echo "config.h generated successfully:"
+            head -10 config.h
+          else
+            echo "ERROR: config.h was not generated"
+            echo "Checking for config.h.in:"
+            ls -la config.h*
             exit 1
           fi
           
