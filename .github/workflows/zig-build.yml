@@ -153,7 +153,6 @@ jobs:
           
           echo "All critical build tools found."
 
-
       - name: Cache Zig source
         uses: actions/cache@v4
         with:
@@ -163,6 +162,26 @@ jobs:
           key: zig-source-${{ env.ZIG_VERSION }}
           restore-keys: |
             zig-source-
+
+      - name: Verify cache setup
+        run: |
+          echo "Cache setup complete - warnings are normal for first run"
+          echo "Cache key: zig-source-$ZIG_VERSION"
+          echo "Next runs will use cached dependencies once this build completes"       
+
+      - name: Verify cache download
+        run: |
+          if [ -f "zig-source.tar.xz" ]; then
+            echo "✓ Source archive found in cache"
+          else
+            echo "Source archive not in cache (normal for first run), will download..."
+          fi
+          
+          if [ -d "zig-source" ]; then
+            echo "✓ Source directory found in cache"
+          else
+            echo "Source directory not in cache (normal for first run), will extract..."
+          fi    
 
       - name: Download and extract Zig source
         shell: bash
