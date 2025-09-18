@@ -164,12 +164,14 @@ jobs:
             zig-source-
 
       - name: Verify cache setup
+        shell: bash
         run: |
           echo "Cache setup complete - warnings are normal for first run"
           echo "Cache key: zig-source-$ZIG_VERSION"
           echo "Next runs will use cached dependencies once this build completes"       
 
       - name: Verify cache download
+        shell: bash 
         run: |
           if [ -f "zig-source.tar.xz" ]; then
             echo "✓ Source archive found in cache"
@@ -181,7 +183,7 @@ jobs:
             echo "✓ Source directory found in cache"
           else
             echo "Source directory not in cache (normal for first run), will extract..."
-          fi    
+          fi   
 
       - name: Download and extract Zig source
         shell: bash
