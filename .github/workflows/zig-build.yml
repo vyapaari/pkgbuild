@@ -531,85 +531,100 @@ jobs:
           echo "Parent directory contents:"
           ls -la ..
           
-          # Configure with CMake using explicit command
-          echo "Configuring with CMake..."
+          # Configure with CMake
           MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
           $CMAKE_CMD .. -GNinja \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DCMAKE_INSTALL_PREFIX="$MINGW_PREFIX" \
-          -DCMAKE_C_COMPILER=gcc \
-          -DCMAKE_CXX_COMPILER=g++ \
-          -DCMAKE_C_FLAGS="-O2 -DNDEBUG" \
-          -DCMAKE_CXX_FLAGS="-O2 -DNDEBUG" \
-          -DZIG_SHARED_LLVM=ON \
-          -DZIG_VERSION="$ZIG_VERSION" \
-          -DZIG_VERSION_MAJOR=0 \
-          -DZIG_VERSION_MINOR=15 \
-          -DZIG_VERSION_PATCH=1 \
-          -DLIB_DIR="lib" \
-          -DINCLUDE_DIR="include" \
-          -DBIN_DIR="bin" \
-          -DLIBZIG_DIR="lib/zig" \
-          -DLLVM_BIN_DIR="bin" \
-          -DLLVM_LIB_DIR="lib" \
-          -DLLVM_INCLUDE_DIR="include" \
-          -DCLANG_BIN_DIR="bin" \
-          -DCLANG_LIB_DIR="lib" \
-          -DCLANG_INCLUDE_DIR="include" \
-          -DLLD_BIN_DIR="bin" \
-          -DLLD_LIB_DIR="lib" \
-          -DLLD_INCLUDE_DIR="include" \
-          -DZLIB_LIB_DIR="lib" \
-          -DZLIB_INCLUDE_DIR="include" \
-          -DZSTD_LIB_DIR="lib" \
-          -DZSTD_INCLUDE_DIR="include" \
-          -DZIG_HAVE_LLVM=1 \
-          -DZIG_ENABLE_DEBUG_EXTENSIONS=0 \
-          -DZIG_DEBUG_GPA=0 \
-          -DZIG_DEBUG_ALLOCATOR=0 \
-          -DZIG_DEBUG_BOUNDS_CHECK=0 \
-          -DZIG_DEBUG_SAFE_BUILTINS=1 \
-          -DZIG_DEBUG_STACK_TRACE=1 \
-          -DZIG_DEBUG_SAFETY=1 \
-          -DZIG_DEBUG_VERBOSE=0 \
-          -DZIG_DEBUG_OPTIMIZE=0 \
-          -DZIG_ENABLE_LOGGING=0 \
-          -DZIG_ENABLE_TRACY=0 \
-          -DZIG_ENABLE_LLVM=1 \
-          -DZIG_ENABLE_ZLIB=1 \
-          -DZIG_ENABLE_ZSTD=1 \
-          -DZIG_STATIC_ZLIB=0 \
-          -DZIG_STATIC_ZSTD=0 \
-          -DZIG_USE_LLD=0 \
-          -DZIG_USE_SYSTEM_LLVM=1 \
-          -DZIG_USE_SYSTEM_ZLIB=1 \
-          -DZIG_USE_SYSTEM_ZSTD=1 \
-          -DZIG_USE_SYSTEM_LIBC=1 \
-          -DZIG_ENABLE_TESTS=0 \
-          -DZIG_ENABLE_EXPERIMENTAL=0 \
-          -DZIG_VERBOSE=0 \
-          -DZIG_IS_STAGE1=0 \
-          -DZIG_ONLY_C=0 \
-          -DZIG_ONLY_CPP=0 \
-          -DZIG_FORCE_GPA=0 \
-          -DZIG_SANITIZE_C=0 \
-          -DZIG_CODE_MODEL="default" \
-          -DZIG_PIC=0 \
-          -DZIG_PIE=0 \
-          -DZIG_RED_ZONE=1 \
-          -DZIG_OMIT_FRAME_POINTER=0 \
-          -DZIG_SINGLE_THREADED=0 \
-          -DZIG_STRIP=0 \
-          -DZIG_LINK_LIBC=0 \
-          -DZIG_LINK_LIBCPP=0 \
-          -DZIG_FUNCTION_SECTIONS=0 \
-          -DZIG_NO_BUILTIN=0 \
-          -DZIG_RUNTIME_SAFETY=1 \
-          -DZIG_TEST_FILTER="" \
-          -DZIG_TEST_NAME_PREFIX="" \
-          -DZIG_NO_LIB=ON \ 
-          2>&1 | tee cmake-configure.log
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="$MINGW_PREFIX" \
+            -DCMAKE_C_COMPILER=gcc \
+            -DCMAKE_CXX_COMPILER=g++ \
+            -DCMAKE_C_FLAGS="-O2 -DNDEBUG" \
+            -DCMAKE_CXX_FLAGS="-O2 -DNDEBUG" \
+            -DZIG_SHARED_LLVM=ON \
+            -DZIG_VERSION="$ZIG_VERSION" \
+            -DZIG_STATIC_ZLIB=OFF \
+            -DZIG_STATIC_ZSTD=OFF \
+            -DZIG_NO_LIB=ON \
+            2>&1 | tee cmake-configure.log
 
+           if [ $? -ne 0 ]; then
+            echo "CMake configuration failed. Full log:"
+            cat cmake-configure.log
+            exit 1
+          fi
+
+            # MANUALLY PROCESS THE CONFIG TEMPLATE since CMake isn't doing it
+            echo "Manually processing config.zig.in template..."
+            sed \
+              -e "s/@ZIG_VERSION@/$ZIG_VERSION/g" \
+              -e "s/@ZIG_VERSION_MAJOR@/0/g" \
+              -e "s/@ZIG_VERSION_MINOR@/15/g" \
+              -e "s/@ZIG_VERSION_PATCH@/1/g" \
+              -e "s/@ZIG_HAVE_LLVM@/true/g" \
+              -e "s/@ZIG_ENABLE_DEBUG_EXTENSIONS@/false/g" \
+              -e "s/@ZIG_DEBUG_GPA@/false/g" \
+              -e "s/@ZIG_DEBUG_ALLOCATOR@/false/g" \
+              -e "s/@ZIG_DEBUG_BOUNDS_CHECK@/false/g" \
+              -e "s/@ZIG_DEBUG_SAFE_BUILTINS@/true/g" \
+              -e "s/@ZIG_DEBUG_STACK_TRACE@/true/g" \
+              -e "s/@ZIG_DEBUG_SAFETY@/true/g" \
+              -e "s/@ZIG_DEBUG_VERBOSE@/false/g" \
+              -e "s/@ZIG_DEBUG_OPTIMIZE@/false/g" \
+              -e "s/@ZIG_ENABLE_LOGGING@/false/g" \
+              -e "s/@ZIG_ENABLE_TRACY@/false/g" \
+              -e "s/@ZIG_ENABLE_LLVM@/true/g" \
+              -e "s/@ZIG_ENABLE_ZLIB@/true/g" \
+              -e "s/@ZIG_ENABLE_ZSTD@/true/g" \
+              -e "s/@ZIG_STATIC_ZLIB@/false/g" \
+              -e "s/@ZIG_STATIC_ZSTD@/false/g" \
+              -e "s/@ZIG_USE_LLD@/false/g" \
+              -e "s/@CMAKE_BUILD_TYPE@/Release/g" \
+              -e "s/@ZIG_USE_SYSTEM_LLVM@/true/g" \
+              -e "s/@ZIG_USE_SYSTEM_ZLIB@/true/g" \
+              -e "s/@ZIG_USE_SYSTEM_ZSTD@/true/g" \
+              -e "s/@ZIG_USE_SYSTEM_LIBC@/true/g" \
+              -e "s/@ZIG_ENABLE_TESTS@/false/g" \
+              -e "s/@ZIG_ENABLE_EXPERIMENTAL@/false/g" \
+              -e "s/@ZIG_VERBOSE@/false/g" \
+              -e "s/@ZIG_IS_STAGE1@/false/g" \
+              -e "s/@ZIG_ONLY_C@/false/g" \
+              -e "s/@ZIG_ONLY_CPP@/false/g" \
+              -e "s/@ZIG_FORCE_GPA@/false/g" \
+              -e "s/@ZIG_SANITIZE_C@/false/g" \
+              -e "s/@ZIG_CODE_MODEL@/default/g" \
+              -e "s/@ZIG_PIC@/false/g" \
+              -e "s/@ZIG_PIE@/false/g" \
+              -e "s/@ZIG_RED_ZONE@/true/g" \
+              -e "s/@ZIG_OMIT_FRAME_POINTER@/false/g" \
+              -e "s/@ZIG_SINGLE_THREADED@/false/g" \
+              -e "s/@ZIG_STRIP@/false/g" \
+              -e "s/@ZIG_LINK_LIBC@/false/g" \
+              -e "s/@ZIG_LINK_LIBCPP@/false/g" \
+              -e "s/@ZIG_FUNCTION_SECTIONS@/false/g" \
+              -e "s/@ZIG_NO_BUILTIN@/false/g" \
+              -e "s/@ZIG_RUNTIME_SAFETY@/true/g" \
+              -e "s/@CMAKE_INSTALL_PREFIX@/\/mingw64/g" \
+              -e "s/@LIB_DIR@/lib/g" \
+              -e "s/@INCLUDE_DIR@/include/g" \
+              -e "s/@BIN_DIR@/bin/g" \
+              -e "s/@LIBZIG_DIR@/lib\/zig/g" \
+              -e "s/@LLVM_BIN_DIR@/bin/g" \
+              -e "s/@LLVM_LIB_DIR@/lib/g" \
+              -e "s/@LLVM_INCLUDE_DIR@/include/g" \
+              -e "s/@CLANG_BIN_DIR@/bin/g" \
+              -e "s/@CLANG_LIB_DIR@/lib/g" \
+              -e "s/@CLANG_INCLUDE_DIR@/include/g" \
+              -e "s/@LLD_BIN_DIR@/bin/g" \
+              -e "s/@LLD_LIB_DIR@/lib/g" \
+              -e "s/@LLD_INCLUDE_DIR@/include/g" \
+              -e "s/@ZLIB_LIB_DIR@/lib/g" \
+              -e "s/@ZLIB_INCLUDE_DIR@/include/g" \
+              -e "s/@ZSTD_LIB_DIR@/lib/g" \
+              -e "s/@ZSTD_INCLUDE_DIR@/include/g" \
+              -e "s/@ZIG_TEST_FILTER@//g" \
+              -e "s/@ZIG_TEST_NAME_PREFIX@//g" \
+              config.zig.in > config.zig
+           
           # Verify config files were generated properly
           if [ -f "config.zig" ]; then
             echo "config.zig generated successfully:"
@@ -639,6 +654,14 @@ jobs:
             tail -100 cmake-build.log
             echo "Build directory contents:"
             ls -la
+            exit 1
+          fi
+          
+          # Verify the critical fields are present
+          if grep -q "have_llvm" config.zig && grep -q "enable_logging" config.zig; then
+            echo "✓ config.zig contains required fields"
+          else
+            echo "ERROR: config.zig is missing required fields"
             exit 1
           fi
           
