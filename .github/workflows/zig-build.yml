@@ -55,7 +55,7 @@ jobs:
             /mingw64/bin
             /mingw64/lib
             /mingw64/include
-          key: mingw64-deps-${{ runner.os }}-${{ hashFiles('.github/workflows/zig-build.yml') }}
+          key: mingw64-deps-${{ runner.os }}-${{ hashFiles('PKGBUILD', '.github/workflows/zig-build.yml') }}
           restore-keys: |
             mingw64-deps-${{ runner.os }}-
 
@@ -73,6 +73,14 @@ jobs:
             base-devel \
             git \
             which
+
+      - name: Update Cache
+        if: always()
+        shell: bash --noprofile --norc -e -o pipefail {0}
+        run: |
+          echo "Cache paths prepared for saving"
+          ls -la /mingw64/bin | wc -l
+          ls -la /var/cache/pacman/pkg | wc -l     
           
           # Force PATH refresh and hash table reset
           hash -r
