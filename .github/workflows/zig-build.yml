@@ -270,10 +270,45 @@ jobs:
           pub const static_zlib = false;
           pub const static_zstd = false;
 
+          // Path configuration
+          pub const install_prefix = "/mingw64";
+          pub const lib_dir = "lib";
+          pub const include_dir = "include";
+          pub const bin_dir = "bin";
+          pub const libzig_dir = "lib/zig";
+
+          // LLVM path configuration
+          pub const llvm_bin_dir = "bin";
+          pub const llvm_lib_dir = "lib";
+          pub const llvm_include_dir = "include";
+
+          // Clang path configuration
+          pub const clang_bin_dir = "bin";
+          pub const clang_lib_dir = "lib";
+          pub const clang_include_dir = "include";
+
+          // LLD path configuration 
+          pub const lld_bin_dir = "bin";
+          pub const lld_lib_dir = "lib";
+          pub const lld_include_dir = "include";
+
+          // Library paths
+          pub const zlib_lib_dir = "lib";
+          pub const zlib_include_dir = "include";
+          pub const zstd_lib_dir = "lib";
+          pub const zstd_include_dir = "include";
+
+          // Linker configuration
+          pub const use_lld_linker = true;
+          pub const use_gnu_linker = false;
+          pub const use_msvc_linker = false;
+          pub const use_gold_linker = false;
+
           // System library usage
           pub const use_system_llvm = true;
           pub const use_system_zlib = true;
           pub const use_system_zstd = true;
+          pub const use_system_libc = true;
 
           // Disable optional features for faster builds
           pub const enable_tests = false;
