@@ -635,8 +635,6 @@ jobs:
           -DZIG_VERSION_MAJOR=0 \
           -DZIG_VERSION_MINOR=15 \
           -DZIG_VERSION_PATCH=1 \
-          \
-          # Path configuration \
           -DLIB_DIR="lib" \
           -DINCLUDE_DIR="include" \
           -DBIN_DIR="bin" \
@@ -654,8 +652,6 @@ jobs:
           -DZLIB_INCLUDE_DIR="include" \
           -DZSTD_LIB_DIR="lib" \
           -DZSTD_INCLUDE_DIR="include" \
-          \
-          # Zig configuration (using 1/0 for consistency) \
           -DZIG_HAVE_LLVM=1 \
           -DZIG_ENABLE_DEBUG_EXTENSIONS=0 \
           -DZIG_DEBUG_GPA=0 \
