@@ -3,7 +3,7 @@ name: Zig Mingw-w64 Build
 on:
   push:
     branches: [main, master]
-    paths: ['PKGBUILD', '.github/workflows/zig-build.yml']
+    paths: ['PKGBUILD', '.github/workflows/zig-build.yml', '.github/scripts/install-deps.sh', '.github/scripts/update-cache.sh'] 
   pull_request:
     branches: [main, master]
     paths: ['PKGBUILD']
@@ -240,7 +240,7 @@ jobs:
           
           # Extract source
           echo "Extracting Zig source..."
-          tar -xJvf zig-source.tar.xz
+          tar -xvf zig-source.tar.xz
           if [ ! -d "zig-$ZIG_VERSION" ]; then
             echo "Error: Extraction failed - directory zig-$ZIG_VERSION not found"
             ls -la
@@ -272,18 +272,20 @@ jobs:
           set -euo pipefail
           echo "Preparing build environment"
          
+          # Check if source directory exists first
+          if [ ! -d "zig-source" ]; then
+            echo "ERROR: zig-source directory not found!"
+            echo "Current directory contents:"
+            ls -la
+            exit 1
+          fi
+          
           cd zig-source
           # Create build directory
           mkdir -p build
           cd build
           echo "Build directory: $(pwd)" 
-                    
-          echo "Preparing build environment"
-          cd zig-source
-          mkdir -p build
-          cd build
-          echo "Build directory: $(pwd)" 
-
+         
           # Create minimal config templates that match your CMake variables
           cat > config.h.in << 'EOF'
           #ifndef ZIG_CONFIG_H
