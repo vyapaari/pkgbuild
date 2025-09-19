@@ -93,9 +93,8 @@ jobs:
             echo "Pacman package cache count: $(ls -la /var/cache/pacman/pkg | wc -l)"
           else
             echo "Pacman package cache directory not found (normal for first run)"
-            # Create the directory so cache can save it
-            sudo mkdir -p /var/cache/pacman/pkg
-            sudo chmod 777 /var/cache/pacman/pkg
+            # Create the directory without sudo - use mkdir with parents flag
+            mkdir -p /var/cache/pacman/pkg || echo "Note: Could not create pacman cache directory (may require admin)"
           fi
           
           if [ -d "/mingw64/lib" ]; then
