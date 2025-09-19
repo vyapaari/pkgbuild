@@ -55,19 +55,7 @@ jobs:
           else
           echo "No scripts directory found, skipping"
           fi
-      
-      - name: Cache pacman packages
-        uses: actions/cache@v4
-        with:
-          path: |
-            /var/cache/pacman/pkg
-            /mingw64/bin
-            /mingw64/lib
-            /mingw64/include
-          key: mingw64-deps-${{ runner.os }}-${{ hashFiles('PKGBUILD') }}
-          restore-keys: |
-            mingw64-deps-${{ runner.os }}-
-      
+          
       - name: Update Cache
         if: always()
         shell: bash --noprofile --norc -e -o pipefail {0}
@@ -105,14 +93,26 @@ jobs:
           hash -r
           
           echo "Cache directories are ready for next run"
-          
+
       - name: Install build dependencies
         shell: bash
         env:
           MSYSTEM: MINGW64
           PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
-        run: ./.github/scripts/install-deps.sh
-
+        run: ./.github/scripts/install-deps.sh    
+      
+      - name: Cache pacman packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            /var/cache/pacman/pkg
+            /mingw64/bin
+            /mingw64/lib
+            /mingw64/include
+          key: mingw64-deps-${{ runner.os }}-${{ hashFiles('PKGBUILD') }}
+          restore-keys: |
+            mingw64-deps-${{ runner.os }}-    
+      
       - name: Verify build tools
         shell: bash
         env:
