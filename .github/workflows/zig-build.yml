@@ -28,7 +28,7 @@ jobs:
           architecture: x86_64
           cache: true
 
-      - name: Checkout repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -75,7 +75,7 @@ jobs:
           PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
         run: ./.github/scripts/install-deps.sh    
             
-    # Update cache AFTER installing dependencies  
+     # Update cache AFTER installing dependencies  
       - name: Update Cache
         if: always()
         shell: bash --noprofile --norc -e -o pipefail {0}
@@ -155,9 +155,9 @@ jobs:
           path: |
             zig-source.tar.xz
             zig-source/
-          key: zig-source-${{ env.ZIG_VERSION }}
-          restore-keys: |
-            zig-source-
+          key: zig-source-${{ runner.os }}-${{ hashFiles('PKGBUILD') }}
+          restore-keys: 
+            zig-source-${{ runner.os }}-
 
       - name: Verify cache setup
         shell: bash
@@ -248,13 +248,20 @@ jobs:
           fi
           mv "zig-$ZIG_VERSION" zig-source
 
-          # Check if source directory exists first
-          if [ ! -d "zig-source" ]; then
-            echo "ERROR: zig-source directory not found!"
-            echo "Current directory contents:"
-            ls -la
-            exit 1
-          fi
+      - name: Verify zig-source exists
+        shell: bash
+        run: |
+            echo "Checking if zig-source directory exists..."
+            if [ -d "zig-source" ]; then
+              echo "✓ zig-source directory found"
+              echo "Contents:"
+              ls -la zig-source/
+            else
+              echo "ERROR: zig-source directory not found!"
+              echo "Current directory contents:"
+              ls -la
+              exit 1
+            fi
 
       - name: Configure build environment
         shell: bash
@@ -793,4 +800,5 @@ jobs:
           path: |
             zig-source/build/*.log
             zig-source/build/stage*/*.log
+            zig-source/*.log
             zig-source/*.log
