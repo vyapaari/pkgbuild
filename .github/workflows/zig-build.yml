@@ -59,7 +59,7 @@ jobs:
           restore-keys: |
             mingw64-deps-${{ runner.os }}-
       
-      - name: Make scripts executable
+      - name: Make Scripts Executable
         shell: bash
         run: | 
           if [ -d ".github/scripts" ]; then
