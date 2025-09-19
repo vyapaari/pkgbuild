@@ -240,7 +240,7 @@ jobs:
           
           # Extract source
           echo "Extracting Zig source..."
-          tar -xzvf zig-source.tar.xz
+          tar -xJvf zig-source.tar.xz
           if [ ! -d "zig-$ZIG_VERSION" ]; then
             echo "Error: Extraction failed - directory zig-$ZIG_VERSION not found"
             ls -la
