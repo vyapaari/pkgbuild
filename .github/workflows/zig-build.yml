@@ -215,7 +215,7 @@ jobs:
             else
               echo "ERROR: curl not found anywhere"
               echo "Attempting to install curl..."
-              pacman -S --noconfirm mingw-w64-x86_64-curl-winssl
+              pacman -S --noconfirm mingw-w64-x86_64-curl
               if [ -f "/mingw64/bin/curl.exe" ]; then
                 CURL_CMD="/mingw64/bin/curl.exe"
               else
@@ -240,13 +240,21 @@ jobs:
           
           # Extract source
           echo "Extracting Zig source..."
-          tar -xf zig-source.tar.xz
+          tar -xzvf zig-source.tar.xz
           if [ ! -d "zig-$ZIG_VERSION" ]; then
             echo "Error: Extraction failed - directory zig-$ZIG_VERSION not found"
             ls -la
             exit 1
           fi
           mv "zig-$ZIG_VERSION" zig-source
+
+          # Check if source directory exists first
+          if [ ! -d "zig-source" ]; then
+            echo "ERROR: zig-source directory not found!"
+            echo "Current directory contents:"
+            ls -la
+            exit 1
+          fi
 
       - name: Configure build environment
         shell: bash
@@ -256,6 +264,7 @@ jobs:
         run: |
           set -euo pipefail
           echo "Preparing build environment"
+         
           cd zig-source
           # Create build directory
           mkdir -p build
