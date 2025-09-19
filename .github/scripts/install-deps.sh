@@ -21,7 +21,7 @@ Server = https://www2.futureware.at/~nickoe/msys2-mirror/mingw/x86_64/
 Server = https://mirror.yandex.ru/mirrors/msys2/mingw/mingw64/
 EOF
 
-pacman -R --noconfirm mingw-w64-x86_64-(curl-openssl-alternate,curl-winssl) 2>/dev/null || true
+pacman -R --noconfirm mingw-w64-x86_64-{curl-openssl-alternate,curl-winssl} 2>/dev/null || true
 
 # Update database with retry
 for i in {1..3}; do

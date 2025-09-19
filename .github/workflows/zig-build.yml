@@ -149,7 +149,7 @@ jobs:
           
           echo "All critical build tools found."
 
-      - name: Cache Zig source
+      - name: Cache Zig Source
         uses: actions/cache@v4
         with:
           path: |
