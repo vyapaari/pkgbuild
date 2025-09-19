@@ -24,7 +24,7 @@ jobs:
       - name: Setup Git for Windows SDK
         uses: git-for-windows/setup-git-for-windows-sdk@v1
         with:
-          flavor: full
+          flavor: build-installers
           architecture: x86_64
           cache: true
 
