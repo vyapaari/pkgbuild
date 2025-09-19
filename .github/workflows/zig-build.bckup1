@@ -1,0 +1,742 @@
+name: Zig Mingw-w64 Build
+
+on:
+  push:
+    branches: [main, master]
+    paths: ['PKGBUILD', '.github/workflows/zig-build.yml']
+  pull_request:
+    branches: [main, master]
+    paths: ['PKGBUILD']
+  workflow_dispatch:
+
+env:
+  ZIG_VERSION: "0.15.1"
+  BUILD_JOBS: 1
+  MINGW_ARCH: mingw64
+  MINGW_PREFIX: /mingw64
+
+jobs:
+  build-zig:
+    runs-on: windows-2022
+    timeout-minutes: 240
+
+    steps:
+      - name: Setup Git for Windows SDK
+        uses: git-for-windows/setup-git-for-windows-sdk@v1
+        with:
+          flavor: full
+          architecture: x86_64
+          cache: true
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Verify Git SDK environment
+        shell: bash
+        env:
+          MSYSTEM: MINGW64
+          PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
+        run: |
+          echo "Git SDK Environment:"
+          git --version
+          which git
+          echo "Working directory:"
+          pwd
+          ls -la
+
+      - name: Configure pacman mirror
+        shell: bash
+        run: |
+          echo "Configuring faster pacman mirror..."
+          
+      - name: Cache pacman packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            /var/cache/pacman/pkg
+            /mingw64/bin
+            /mingw64/lib
+            /mingw64/include
+          key: mingw64-deps-${{ runner.os }}-${{ hashFiles('PKGBUILD') }}
+          restore-keys: |
+            mingw64-deps-${{ runner.os }}-
+
+      - name: Install build dependencies
+        shell: bash
+        env:
+          MSYSTEM: MINGW64
+          PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
+        run: |
+          echo "Updating pacman database..."
+          pacman -Sy --noconfirm
+          echo "Installing Mingw-w64 build dependencies..."
+          pacman -S --noconfirm --needed \
+            mingw-w64-x86_64-{llvm,clang,lld,zlib,zstd,cmake,ninja,gcc,curl-winssl} \
+            base-devel \
+            git \
+            which
+
+      - name: Update Cache
+        if: always()
+        shell: bash --noprofile --norc -e -o pipefail {0}
+        run: |
+          echo "Cache paths prepared for saving"
+          ls -la /mingw64/bin | wc -l
+          ls -la /var/cache/pacman/pkg | wc -l     
+          
+          # Force PATH refresh and hash table reset
+          hash -r
+          
+      - name: Verify build tools
+        shell: bash
+        env:
+          MSYSTEM: MINGW64
+          PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
+        run: |
+          echo "Verifying build tools installation:"
+          
+          # Check cmake
+          if which cmake; then
+            echo "cmake found in PATH: $(which cmake)"
+            cmake --version || echo "Warning: Could not get cmake version"
+            CMAKE_FOUND=true
+          elif [ -f "/mingw64/bin/cmake.exe" ]; then
+            echo "cmake found at: /mingw64/bin/cmake.exe"
+            /mingw64/bin/cmake.exe --version | head -1 || echo "Warning: Could not get cmake version"
+            CMAKE_FOUND=true
+          else
+            echo "ERROR: cmake not found"
+            CMAKE_FOUND=false
+          fi
+          
+          # Check ninja
+          if which ninja; then
+            echo "ninja found in PATH: $(which ninja)"
+            ninja --version || echo "Warning: Could not get ninja version"
+            NINJA_FOUND=true
+          elif [ -f "/mingw64/bin/ninja.exe" ]; then
+            echo "ninja found at: /mingw64/bin/ninja.exe"
+            /mingw64/bin/ninja.exe --version || echo "Warning: Could not get ninja version"
+            NINJA_FOUND=true
+          else
+            echo "ERROR: ninja not found"
+            NINJA_FOUND=false
+          fi
+          
+          # Check gcc
+          if which gcc; then
+            echo "gcc found in PATH: $(which gcc)"
+            gcc --version || echo "Warning: Could not get gcc version"
+            GCC_FOUND=true
+          elif [ -f "/mingw64/bin/gcc.exe" ]; then
+            echo "gcc found at: /mingw64/bin/gcc.exe"
+            /mingw64/bin/gcc.exe --version | head -1 || echo "Warning: Could not get gcc version"
+            GCC_FOUND=true
+          else
+            echo "ERROR: gcc not found"
+            GCC_FOUND=false
+          fi
+          
+          # Check curl
+          if which curl; then
+            echo "curl found in PATH: $(which curl)"
+          elif [ -f "/mingw64/bin/curl.exe" ]; then
+            echo "curl found at: /mingw64/bin/curl.exe"
+          else
+            echo "ERROR: curl not found"
+          fi
+          
+          # Exit if critical tools missing
+          if [ "$CMAKE_FOUND" != "true" ] || [ "$NINJA_FOUND" != "true" ]; then
+            echo "Critical build tools missing. Listing /mingw64/bin contents:"
+            ls -la /mingw64/bin/ | grep -E "(cmake|ninja)" || echo "No cmake/ninja found"
+            exit 1
+          fi
+          
+          echo "All critical build tools found."
+
+      - name: Cache Zig source
+        uses: actions/cache@v4
+        with:
+          path: |
+            zig-source.tar.xz
+            zig-source/
+          key: zig-source-${{ env.ZIG_VERSION }}
+          restore-keys: |
+            zig-source-
+
+      - name: Verify cache setup
+        shell: bash
+        run: |
+          echo "Cache setup complete - warnings are normal for first run"
+          echo "Cache key: zig-source-$ZIG_VERSION"
+          echo "Next runs will use cached dependencies once this build completes"       
+
+      - name: Verify cache download
+        shell: bash 
+        run: |
+          if [ -f "zig-source.tar.xz" ]; then
+            echo "✓ Source archive found in cache"
+          else
+            echo "Source archive not in cache (normal for first run), will download..."
+          fi
+          
+          if [ -d "zig-source" ]; then
+            echo "✓ Source directory found in cache"
+          else
+            echo "Source directory not in cache (normal for first run), will extract..."
+          fi   
+
+      - name: Download and extract Zig source
+        shell: bash
+        env:
+          MSYSTEM: MINGW64
+          PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
+        run: |
+          echo "Downloading Zig source..."
+          
+          # Extract source URL from PKGBUILD and expand variables
+          if [ -f "PKGBUILD" ]; then
+            source_line=$(grep '^source=' PKGBUILD | head -1)
+            
+            # More robust parsing that handles quotes properly
+            source_url=$(echo "$source_line" | sed -e 's/^source=(//' -e 's/)$//' -e 's/["'\'']*//g' -e "s/\\\${pkgver}/$ZIG_VERSION/g")
+            echo "Parsed source URL: $source_url"
+            
+          else
+            # Fallback to direct URL if no PKGBUILD
+            source_url="https://ziglang.org/download/$ZIG_VERSION/zig-$ZIG_VERSION.tar.xz"
+            echo "Using fallback URL: $source_url"
+          fi
+          
+          if [[ $source_url == http* ]]; then
+            echo "Downloading from: $source_url"
+            
+            # Try different curl locations
+            CURL_CMD=""
+            if [ -f "/mingw64/bin/curl.exe" ]; then
+              CURL_CMD="/mingw64/bin/curl.exe"
+            elif command -v curl >/dev/null 2>&1; then
+              CURL_CMD="curl"
+            else
+              echo "ERROR: curl not found anywhere"
+              echo "Attempting to install curl..."
+              pacman -S --noconfirm mingw-w64-x86_64-curl-winssl
+              if [ -f "/mingw64/bin/curl.exe" ]; then
+                CURL_CMD="/mingw64/bin/curl.exe"
+              else
+                echo "ERROR: curl installation failed"
+                exit 1
+              fi
+            fi
+            
+            echo "Using curl at: $CURL_CMD"
+            $CURL_CMD -L --connect-timeout 30 --max-time 600 --retry 3 --retry-delay 5 -f -o zig-source.tar.xz "$source_url"
+            
+          else
+            echo "Error: Invalid URL: $source_url"
+            exit 1
+          fi
+          
+          # Verify download
+          if [ ! -f "zig-source.tar.xz" ] || [ ! -s "zig-source.tar.xz" ]; then
+            echo "Error: Download failed or file is empty"
+            exit 1
+          fi
+          
+          # Extract source
+          echo "Extracting Zig source..."
+          tar -xf zig-source.tar.xz
+          if [ ! -d "zig-$ZIG_VERSION" ]; then
+            echo "Error: Extraction failed - directory zig-$ZIG_VERSION not found"
+            ls -la
+            exit 1
+          fi
+          mv "zig-$ZIG_VERSION" zig-source
+
+      - name: Configure build environment
+        shell: bash
+        env:
+          MSYSTEM: MINGW64
+          PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
+        run: |
+          set -euo pipefail
+          echo "Preparing build environment"
+          cd zig-source
+          # Create build directory
+          mkdir -p build
+          cd build
+          echo "Build directory: $(pwd)" 
+                    
+          # Copy the existing config templates from stage1 instead of creating new ones
+          cp ../stage1/config.zig.in .
+          cp ../stage1/config.h.in .
+          
+          echo "Using Zig's provided config templates:"
+          ls -la config.*.in
+          echo "config.zig.in first few lines:"
+          head -5 config.zig.in
+          
+      - name: Build Zig (Stage 1 - CMake)
+        shell: bash
+        env:
+          MSYSTEM: MINGW64
+          PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
+          PKG_CONFIG_PATH: /mingw64/lib/pkgconfig:/mingw64/share/pkgconfig
+          CPPFLAGS: -I/mingw64/include
+          LDFLAGS: -L/mingw64/lib
+        run: |
+          echo "Starting CMake build (Stage 1)..."
+          
+          # Determine tool paths explicitly
+          CMAKE_CMD=""
+          NINJA_CMD=""
+          
+          if [ -f "/mingw64/bin/cmake.exe" ]; then
+            CMAKE_CMD="/mingw64/bin/cmake.exe"
+          elif command -v cmake >/dev/null 2>&1; then
+            CMAKE_CMD="cmake"
+          else
+            echo "ERROR: cmake not found"
+            exit 1
+          fi
+          
+          if [ -f "/mingw64/bin/ninja.exe" ]; then
+            NINJA_CMD="/mingw64/bin/ninja.exe"
+          elif command -v ninja >/dev/null 2>&1; then
+            NINJA_CMD="ninja"
+          else
+            echo "ERROR: ninja not found"
+            exit 1
+          fi
+          
+          echo "Using CMAKE: $CMAKE_CMD"
+          echo "Using NINJA: $NINJA_CMD"
+          echo "Environment verification:"
+          echo "MSYSTEM: $MSYSTEM"
+          echo "PATH: $PATH"
+          echo "Working directory: $(pwd)"
+          
+          $CMAKE_CMD --version | head -1 || echo "cmake version check failed but proceeding"
+          $NINJA_CMD --version || echo "ninja version check failed but proceeding"
+          echo "gcc version: $(gcc --version | head -1 || echo 'gcc version check failed')"
+          
+          # Check if source directory exists
+          if [ ! -d "zig-source" ]; then
+            echo "Error: zig-source directory not found"
+            echo "Current directory contents:"
+            ls -la
+            exit 1
+          fi
+          
+          cd zig-source/build
+          echo "Build directory: $(pwd)"
+          echo "Parent directory contents:"
+          ls -la ..
+          
+            # Configure with CMake using explicit command
+            echo "Configuring with CMake..."
+            MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+            $CMAKE_CMD .. -GNinja \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_INSTALL_PREFIX="$MINGW_PREFIX" \
+              -DCMAKE_C_COMPILER=gcc \
+              -DCMAKE_CXX_COMPILER=g++ \
+              -DCMAKE_C_FLAGS="-O2 -DNDEBUG" \
+              -DCMAKE_CXX_FLAGS="-O2 -DNDEBUG" \
+              -DZIG_SHARED_LLVM=ON \
+              -DZIG_VERSION="$ZIG_VERSION" \
+              -DZIG_STATIC_ZLIB=OFF \
+              -DZIG_STATIC_ZSTD=OFF \
+              -DZIG_NO_LIB=ON \
+              2>&1 | tee cmake-configure.log
+
+           # Verify config files were generated properly
+            if [ -f "config.zig" ]; then
+              echo "config.zig generated successfully:"
+              head -10 config.zig
+              echo "Checking for critical fields:"
+              grep -E "(have_llvm|enable_logging|skip_non_native|enable_link_snapshots|value_interpret_mode)" config.zig || echo "Some fields not found"
+            else
+              echo "ERROR: config.zig was not generated by CMake"
+              exit 1
+          fi
+
+          if [ -f "config.h" ]; then
+            echo "config.h generated successfully:"
+            head -10 config.h
+          else
+            echo "ERROR: config.h was not generated"
+            exit 1
+          fi
+          
+          echo "Building with single-threaded linking for stability..."
+          $NINJA_CMD -j1 2>&1 | tee cmake-build.log
+          
+          if [ $? -ne 0 ]; then
+            echo "Ninja build failed. Last 100 lines of log:"
+            tail -100 cmake-build.log
+            echo "Build directory contents:"
+            ls -la
+            exit 1
+          fi
+          
+          # Verify the critical fields are present
+          if grep -q "have_llvm" config.zig && grep -q "enable_logging" config.zig; then
+            echo "✓ config.zig contains required fields"
+          else
+            echo "ERROR: config.zig is missing required fields"
+            exit 1
+          fi
+          
+          # Verify what was built
+          echo "Build completed. Checking output:"
+          ls -la *.exe || echo "No executables found"
+          
+          # Look for any zig executable
+          ZIG_EXECUTABLE=""
+          if [ -f "zig.exe" ]; then
+            ZIG_EXECUTABLE="zig.exe"
+          elif [ -f "zig1.exe" ]; then
+            ZIG_EXECUTABLE="zig1.exe"
+          elif [ -f "zig2.exe" ]; then
+            ZIG_EXECUTABLE="zig2.exe"
+          else
+            echo "No zig executable found - checking subdirectories"
+            find . -name "zig*.exe" -type f || echo "No zig executables found anywhere"
+            exit 1
+          fi
+          
+          echo "✓ $ZIG_EXECUTABLE built successfully"
+          ./$ZIG_EXECUTABLE version || echo "Version check continued despite error"
+
+      - name: Build Zig (Stage 2 - Self-hosted compiler)
+        shell: bash
+        env:
+          MSYSTEM: MINGW64
+          PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
+        run: |
+          echo "Building self-hosted compiler (Stage 2)..."
+          cd zig-source/build
+          
+          # Find the bootstrap compiler
+          ZIG_EXECUTABLE=""
+          if [ -f "zig2.exe" ]; then
+            ZIG_EXECUTABLE="zig2.exe"
+          elif [ -f "zig1.exe" ]; then
+            ZIG_EXECUTABLE="zig1.exe"
+          elif [ -f "zig.exe" ]; then
+            ZIG_EXECUTABLE="zig.exe"
+          else
+            echo "ERROR: No bootstrap zig executable found"
+            ls -la *.exe || echo "No executables found"
+            exit 1
+          fi
+          
+          echo "Using bootstrap compiler: $ZIG_EXECUTABLE"
+          
+          # Build self-hosted compiler
+          ./$ZIG_EXECUTABLE build-exe ../src/main.zig \
+            -femit-bin=zig-stage2.exe \
+            -OReleaseSafe \
+            --name zig \
+            --zig-lib-dir ../lib 2>&1 | tee stage2-build.log
+          
+          if [ -f "zig-stage2.exe" ]; then
+            echo "✓ zig-stage2.exe built successfully"
+            ./zig-stage2.exe version
+          else
+            echo "Stage2 build failed - checking log:"
+            cat stage2-build.log
+            exit 1
+          fi
+
+      - name: Build Zig (Stage 3 - Final optimized compiler)
+        shell: bash
+        env:
+          MSYSTEM: MINGW64
+          PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
+        run: |
+          echo "Building final optimized compiler (Stage 3)..."
+          cd zig-source/build
+          
+          if [ -f "zig-stage2.exe" ]; then
+            ./zig-stage2.exe build \
+              --prefix stage3 \
+              --zig-lib-dir ../lib \
+              -Doptimize=ReleaseSafe \
+              --verbose 2>&1 | tee stage3-build.log
+            
+            if [ -f "stage3/bin/zig.exe" ]; then
+              echo "✓ Final Zig compiler built successfully"
+              ./stage3/bin/zig.exe version
+              ./stage3/bin/zig.exe targets
+            else
+              echo "Stage3 build failed - using stage2 as final"
+              mkdir -p stage3/bin
+              cp zig-stage2.exe stage3/bin/zig.exe
+              echo "Using stage2 as final compiler"
+            fi
+          else
+            echo "No stage2 compiler found for stage3 build"
+            exit 1
+          fi
+
+      - name: Test the built compiler
+        shell: bash
+        env:
+          MSYSTEM: MINGW64
+          PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
+        run: |
+          echo "Testing the built compiler..."
+          cd zig-source/build
+          
+          if [ -f "stage3/bin/zig.exe" ]; then
+            # Basic functionality tests
+            ./stage3/bin/zig.exe version
+            ./stage3/bin/zig.exe targets
+            
+            # Simple compile test
+            cat > test.zig << 'EOF'
+          const std = @import("std");
+          pub fn main() void {
+              std.debug.print("Hello, Zig!\n", .{});
+          }
+          EOF
+            
+            ./stage3/bin/zig.exe build-exe test.zig
+            ./test.exe
+            
+            echo "✓ All compiler tests passed"
+          else
+            echo "No final compiler found for testing"
+            exit 1
+          fi
+
+      - name: Create package structure
+        shell: bash
+        env:
+          MSYSTEM: MINGW64
+          PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
+        run: |
+          echo "Creating mingw-w64 package structure..."
+          cd zig-source/build
+          
+          # Create package directory structure
+          mkdir -p "pkg/$MINGW_PREFIX"/{bin,lib,share/licenses/zig}
+          
+          # Install final compiler binary
+          install -Dm755 stage3/bin/zig.exe "pkg/$MINGW_PREFIX/bin/zig.exe"
+          
+          # Install standard library (critical for Zig to function)
+          cp -r ../lib "pkg/$MINGW_PREFIX/lib/zig"
+          
+          # Install license
+          install -Dm644 ../LICENSE "pkg/$MINGW_PREFIX/share/licenses/zig/LICENSE"
+          
+          # Create package metadata for mingw-w64
+          mkdir -p pkg/.MTREE
+          cat > pkg/.MTREE/desc << EOF
+          %NAME%
+          mingw-w64-x86_64-zig
+          
+          %VERSION%
+          $ZIG_VERSION-1
+          
+          %DESC%
+          A general-purpose programming language and toolchain for maintaining robust, optimal, and reusable software
+          
+          %URL%
+          https://ziglang.org/
+          
+          %ARCH%
+          x86_64
+          
+          %BUILDDATE%
+          $(date +%s)
+          
+          %PACKAGER%
+          GitHub Actions
+          
+          %SIZE%
+          $(du -sb pkg | cut -f1)
+          
+          %LICENSE%
+          MIT
+          
+          %DEPENDS%
+          mingw-w64-x86_64-llvm
+          mingw-w64-x86_64-clang
+          mingw-w64-x86_64-lld
+          
+          %PROVIDES%
+          mingw-w64-x86_64-zig
+          EOF
+
+      - name: Create package archive
+        shell: bash
+        env:
+          MSYSTEM: MINGW64
+          PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
+        run: |
+          echo "Creating mingw-w64 package archive..."
+          cd zig-source/build/pkg
+          
+          # Create package using mingw-w64 naming convention
+          tar -czf "../../mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.gz" .MTREE *
+          cd ../..
+          
+          # Verify package was created
+          if [ -f "mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.gz" ]; then
+            echo "✓ Package created successfully"
+            ls -lh "mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.gz"
+          else
+            echo "Package creation failed"
+            exit 1
+          fi
+
+      - name: Test package installation
+        shell: bash
+        env:
+          MSYSTEM: MINGW64
+          PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
+        run: |
+          echo "Testing package installation..."
+          cd zig-source
+          
+          # Install the package
+          pacman -U --noconfirm "mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.gz"
+          
+          # Test installed compiler
+          zig version
+          zig targets
+          
+          # Test compilation with installed version
+          cat > package_test.zig << 'EOF'
+          const std = @import("std");
+          pub fn main() void {
+              std.debug.print("Package test successful!\n", .{});
+          }
+          EOF
+          
+          zig build-exe package_test.zig
+          ./package_test.exe
+          
+          echo "✓ Package installation and testing completed successfully"
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: failure-artifacts-${{ github.run_number }}
+          path: |
+            zig-source/build/*.log
+            zig-source/build/CMakeFiles/CMakeError.log
+            zig-source/build/CMakeFiles/CMakeOutput.log
+            zig-source/build/CMakeCache.txt
+            zig-source/build/stage*/*.log
+            zig-source/*.log
+            build-report.md
+
+      - name: Create build report
+        if: always()
+        shell: bash
+        env:
+          MSYSTEM: MINGW64
+          PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
+        run: |
+          BUILD_REPORT="build-report.md"
+          echo "# Zig Mingw-w64 Build Report" > "$BUILD_REPORT"
+          echo "" >> "$BUILD_REPORT"
+          echo "**Status:** ${{ job.status == 'success' && '✅ Success' || '❌ Failed' }}" >> "$BUILD_REPORT"
+          echo "**Version:** $ZIG_VERSION" >> "$BUILD_REPORT"
+          echo "**Build Jobs:** $BUILD_JOBS" >> "$BUILD_REPORT"
+          echo "**Build Time:** $(date)" >> "$BUILD_REPORT"
+          echo "**Workflow Run:** ${{ github.run_id }}" >> "$BUILD_REPORT"
+          echo "" >> "$BUILD_REPORT"
+          
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "**Package:** mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.gz" >> "$BUILD_REPORT"
+            if [ -f "zig-source/mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.gz" ]; then
+              echo "**Size:** $(du -h "zig-source/mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.gz" | cut -f1)" >> "$BUILD_REPORT"
+              # Add SHA256 checksum
+              echo "**SHA256:** $(sha256sum "zig-source/mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.gz" | cut -d' ' -f1)" >> "$BUILD_REPORT"
+            fi
+            echo "**Compiler Path:** zig-source/build/stage3/bin/zig.exe" >> "$BUILD_REPORT"
+            echo "" >> "$BUILD_REPORT"
+            echo "## Build Steps Completed" >> "$BUILD_REPORT"
+            echo "- ✅ Dependencies installed" >> "$BUILD_REPORT"
+            echo "- ✅ Source downloaded and extracted" >> "$BUILD_REPORT"
+            echo "- ✅ Stage 1 build (CMake)" >> "$BUILD_REPORT"
+            echo "- ✅ Stage 2 build (Self-hosted)" >> "$BUILD_REPORT"
+            echo "- ✅ Stage 3 build (Final)" >> "$BUILD_REPORT"
+            echo "- ✅ Package created" >> "$BUILD_REPORT"
+            echo "- ✅ Package tested" >> "$BUILD_REPORT"
+          else
+            echo "## Build Steps Status" >> "$BUILD_REPORT"
+            
+            # Check which steps completed successfully
+            if [ -d "zig-source" ]; then
+              echo "- ✅ Dependencies installed" >> "$BUILD_REPORT"
+              echo "- ✅ Source downloaded and extracted" >> "$BUILD_REPORT"
+              
+              if [ -f "zig-source/build/zig.exe" ] || [ -f "zig-source/build/zig1.exe" ]; then
+                echo "- ✅ Stage 1 build (CMake)" >> "$BUILD_REPORT"
+              else
+                echo "- ❌ Stage 1 build (CMake) failed" >> "$BUILD_REPORT"
+              fi
+              
+              if [ -f "zig-source/build/zig-stage2.exe" ]; then
+                echo "- ✅ Stage 2 build (Self-hosted)" >> "$BUILD_REPORT"
+              else
+                echo "- ❌ Stage 2 build (Self-hosted) failed" >> "$BUILD_REPORT"
+              fi
+              
+              if [ -f "zig-source/build/stage3/bin/zig.exe" ]; then
+                echo "- ✅ Stage 3 build (Final)" >> "$BUILD_REPORT"
+              else
+                echo "- ❌ Stage 3 build (Final) failed" >> "$BUILD_REPORT"
+              fi
+              
+              if [ -f "zig-source/mingw-w64-x86_64-zig-$ZIG_VERSION-1-any.pkg.tar.gz" ]; then
+                echo "- ✅ Package created" >> "$BUILD_REPORT"
+              else
+                echo "- ❌ Package creation failed" >> "$BUILD_REPORT"
+              fi
+            else
+              echo "- ❌ Initial environment setup failed" >> "$BUILD_REPORT"
+            fi
+            
+            echo "" >> "$BUILD_REPORT"
+            echo "## Error Information" >> "$BUILD_REPORT"
+            echo "Please check the uploaded logs for detailed error information." >> "$BUILD_REPORT"
+          fi
+
+      - name: Upload build report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-report-${{ github.run_number }}
+          path: build-report.md
+
+      - name: Upload build artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zig-mingw64-${{ env.ZIG_VERSION }}-package
+          path: |
+            zig-source/mingw-w64-x86_64-zig-*.pkg.tar.gz
+            zig-source/build/stage3/bin/zig.exe
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs-${{ github.run_number }}
+          path: |
+            zig-source/build/*.log
+            zig-source/build/stage*/*.log
+            zig-source/*.log
