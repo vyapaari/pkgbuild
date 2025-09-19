@@ -348,6 +348,21 @@ jobs:
 
           echo "Minimal config templates created with only essential fields"
 
+      - name: Check system resources
+        shell: bash
+        run: |
+          echo "=== System Resources Before Build ==="
+          echo "CPU cores: $(nproc || echo "unknown")"
+          echo "Memory:"
+          free -h || echo "free command not available"
+          echo "Disk space:"
+          df -h || echo "df command not available"
+          echo "Build will use:"
+          echo "- CMake: $(which cmake || which cmake.exe)"
+          echo "- Ninja: $(which ninja || which ninja.exe)" 
+          echo "- GCC: $(which gcc || which gcc.exe)"
+          echo "=== ========================= ==="    
+
       - name: Build Zig (Stage 1 - CMake)
         shell: bash
         env:
@@ -407,19 +422,24 @@ jobs:
           
           # Configure with CMake using explicit command
           echo "Configuring with CMake..."
-          MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+          MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX="" \
           $CMAKE_CMD .. -G Ninja \
             -DCMAKE_C_COMPILER=/mingw64/bin/gcc.exe \
-            -DCMAKE_CXX_COMPILER=/mingw64/bin/g++.exe \
+            -DCMAKE_CXX_COMPILER=/mingw64/bin/g++.exe \  
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_INSTALL_PREFIX="$MINGW_PREFIX" \
-            -DCMAKE_C_COMPILER=gcc \
-            -DCMAKE_CXX_COMPILER=g++ \
-            -DCMAKE_C_FLAGS="-O2 -DNDEBUG -flto=auto" \
-            -DCMAKE_CXX_FLAGS="-O2 -DNDEBUG -flto=auto" \
+            -DCMAKE_PREFIX_PATH="/mingw64" \
+            -DCMAKE_C_FLAGS="-O2 -DNDEBUG -flto=auto"
+            -DCMAKE_CXX_FLAGS="-O2 -DNDEBUG -flto=auto"
+            -DCMAKE_AR=/mingw64/bin/ar.exe \
+            -DCMAKE_RANLIB=/mingw64/bin/ranlib.exe \
+            -DCMAKE_LINKER=/mingw64/bin/ld.exe \
+            -DCMAKE_MAKE_PROGRAM="$NINJA_CMD" \
+            -DCMAKE_CXX_STANDARD=17 \
             -DCMAKE_EXE_LINKER_FLAGS="-flto=auto" \
             -DCMAKE_SHARED_LINKER_FLAGS="-flto=auto" \
             -DCMAKE_MODULE_LINKER_FLAGS="-flto=auto" \
+            -DZIG_TARGET_TRIPLE=x86_64-windows-gnu \                                    
             -DZIG_STATIC_LLVM=OFF \
             -DZIG_SHARED_LLVM=ON \
             -DZIG_VERSION="$ZIG_VERSION" \
@@ -452,11 +472,11 @@ jobs:
           # echo "Building with single-threaded linking for stability..."
           # $NINJA_CMD -j1 2>&1 | tee cmake-build.log
 
-          echo "Building with 5-minute timeout to prevent hanging..."
-          timeout 5m $NINJA_CMD -j1 2>&1 | tee cmake-build.log
+          echo "Building with 15-minute timeout to prevent hanging..."
+          timeout 15m $NINJA_CMD -j1 2>&1 | tee cmake-build.log
 
           if [ $? -eq 124 ]; then
-            echo "Build timed out after 5 minutes - trying parallel build..."
+            echo "Build timed out after 15 minutes - trying parallel build..."
             $NINJA_CMD -j2 2>&1 | tee cmake-build-timeout.log
           fi
 
@@ -467,6 +487,21 @@ jobs:
             ls -la
             exit 1
           fi
+
+      - name: Diagnose build failure
+        if: failure()
+        shell: bash
+        run: |
+          echo "=== Build Failure Diagnosis ==="
+          echo "Last 50 lines of build log:"
+          tail -50 cmake-build.log || echo "No build log found"
+          echo ""
+          echo "Current memory usage:"
+          free -h || echo "free command not available"
+          echo ""
+          echo "Largest files in build directory:"
+          find . -name "*.c" -o -name "*.obj" -o -name "*.o" | xargs ls -laSh 2>/dev/null | head -10 || echo "No build files found"
+          echo "=== ===================== ==="   
           
           # Verify the critical fields are present
           if grep -q "have_llvm" config.zig && grep -q "enable_logging" config.zig; then
@@ -493,9 +528,9 @@ jobs:
             find . -name "zig*.exe" -type f || echo "No zig executables found anywhere"
             exit 1
           fi
-          
-          echo "✓ $ZIG_EXECUTABLE built successfully"
-          ./$ZIG_EXECUTABLE version || echo "Version check continued despite error"
+    
+            echo "✓ $ZIG_EXECUTABLE built successfully"
+            ./$ZIG_EXECUTABLE version || echo "Version check continued despite error"
 
       - name: Build Zig (Stage 2 - Self-hosted compiler)
         shell: bash
