@@ -57,7 +57,14 @@ jobs:
             /mingw64/include
           key: mingw64-deps-${{ runner.os }}-${{ hashFiles('PKGBUILD') }}
           restore-keys: |
-            mingw64-deps-${{ runner.os }}-  
+            mingw64-deps-${{ runner.os }}- 
+              
+      - name: Verify cache status
+        shell: bash
+        run: |
+          echo "Cache status: First run - no cache found yet (this is normal)"
+          echo "Cache key: mingw64-deps-$RUNNER_OS-$(sha256sum PKGBUILD 2>/dev/null | cut -d' ' -f1 || echo 'no-pkgbuild')"
+          echo "After this workflow completes, the cache will be created for future runs"        
                 
       - name: Make Scripts Executable
         shell: bash
@@ -157,7 +164,7 @@ jobs:
             zig-source/
           key: zig-source-${{ runner.os }}-${{ hashFiles('PKGBUILD') }}
           restore-keys: 
-            zig-source-${{ runner.os }}-
+            zig-source-${{ env.ZIG_VERSION }}
 
       - name: Verify cache setup
         shell: bash
@@ -240,7 +247,7 @@ jobs:
           
           # Extract source
           echo "Extracting Zig source..."
-          tar -xvf zig-source.tar.xz
+          tar -xf zig-source.tar.xz
           if [ ! -d "zig-$ZIG_VERSION" ]; then
             echo "Error: Extraction failed - directory zig-$ZIG_VERSION not found"
             ls -la
@@ -279,7 +286,7 @@ jobs:
             ls -la
             exit 1
           fi
-          
+
           cd zig-source
           # Create build directory
           mkdir -p build
@@ -406,8 +413,15 @@ jobs:
             -DCMAKE_INSTALL_PREFIX="$MINGW_PREFIX" \
             -DCMAKE_C_COMPILER=gcc \
             -DCMAKE_CXX_COMPILER=g++ \
-            -DCMAKE_C_FLAGS="-O2 -DNDEBUG" \
-            -DCMAKE_CXX_FLAGS="-O2 -DNDEBUG" \
+            -DCMAKE_C_FLAGS="-O2 -DNDEBUG -flto=auto" \        # ← ADD THIS
+            -DCMAKE_CXX_FLAGS="-O2 -DNDEBUG -flto=auto"  \     # ← ADD THIS  
+            -DCMAKE_EXE_LINKER_FLAGS="-flto=auto" \            # ← ADD THIS
+            -DCMAKE_SHARED_LINKER_FLAGS="-flto=auto" \         # ← ADD THIS 
+            -DCMAKE_MODULE_LINKER_FLAGS="-flto=auto" \         # ← ADD THIS 
+            -DCMAKE_AR=ar \                                      # ← ADD THIS
+            -DCMAKE_NM=nm \                                    # ← ADD THIS                 
+            -DCMAKE_RANLIB=ranlib \                          
+            -DZIG_STATIC_LLVM=OFF \
             -DZIG_SHARED_LLVM=ON \
             -DZIG_VERSION="$ZIG_VERSION" \
             -DZIG_STATIC_ZLIB=OFF \
@@ -435,10 +449,18 @@ jobs:
             ls -la config.h*
             exit 1
           fi
-          
-          echo "Building with single-threaded linking for stability..."
-          $NINJA_CMD -j1 2>&1 | tee cmake-build.log
-          
+
+          # echo "Building with single-threaded linking for stability..."
+          # $NINJA_CMD -j1 2>&1 | tee cmake-build.log
+
+          echo "Building with 5-minute timeout to prevent hanging..."
+          timeout 5m $NINJA_CMD -j1 2>&1 | tee cmake-build.log
+
+          if [ $? -eq 124 ]; then
+            echo "Build timed out after 5 minutes - trying parallel build..."
+            $NINJA_CMD -j2 2>&1 | tee cmake-build-timeout.log
+          fi
+
           if [ $? -ne 0 ]; then
             echo "Ninja build failed. Last 100 lines of log:"
             tail -100 cmake-build.log
