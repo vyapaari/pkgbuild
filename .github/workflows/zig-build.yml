@@ -68,14 +68,6 @@ jobs:
           echo "No scripts directory found, skipping"
           fi
 
-      - name: Install build dependencies
-        shell: bash
-        env:
-          MSYSTEM: MINGW64
-          PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
-        run: ./.github/scripts/install-deps.sh
-          
-
       - name: Update Cache
         if: always()
         shell: bash --noprofile --norc -e -o pipefail {0}
@@ -114,6 +106,13 @@ jobs:
           
           echo "Cache directories are ready for next run"
           
+      - name: Install build dependencies
+        shell: bash
+        env:
+          MSYSTEM: MINGW64
+          PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
+        run: ./.github/scripts/install-deps.sh
+        
       - name: Verify build tools
         shell: bash
         env:
