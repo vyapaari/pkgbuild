@@ -131,7 +131,7 @@ jobs:
             GCC_FOUND=false
           fi
           
-          # Check curl
+          # Check Curl
           if which curl; then
             echo "curl found in PATH: $(which curl)"
           elif [ -f "/mingw64/bin/curl.exe" ]; then
