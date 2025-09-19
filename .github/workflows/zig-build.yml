@@ -413,14 +413,14 @@ jobs:
             -DCMAKE_INSTALL_PREFIX="$MINGW_PREFIX" \
             -DCMAKE_C_COMPILER=gcc \
             -DCMAKE_CXX_COMPILER=g++ \
-            -DCMAKE_C_FLAGS="-O2 -DNDEBUG -flto=auto" \        # ← ADD THIS
-            -DCMAKE_CXX_FLAGS="-O2 -DNDEBUG -flto=auto" \     # ← ADD THIS  
-            -DCMAKE_EXE_LINKER_FLAGS="-flto=auto" \            # ← ADD THIS
-            -DCMAKE_SHARED_LINKER_FLAGS="-flto=auto" \         # ← ADD THIS 
-            -DCMAKE_MODULE_LINKER_FLAGS="-flto=auto" \         # ← ADD THIS 
-            -DCMAKE_AR=ar \                                      # ← ADD THIS
-            -DCMAKE_NM=nm \                                    # ← ADD THIS                 
-            -DCMAKE_RANLIB=ranlib \                          
+            -DCMAKE_C_FLAGS="-O2 -DNDEBUG -flto=auto" \
+            -DCMAKE_CXX_FLAGS="-O2 -DNDEBUG -flto=auto"   
+            -DCMAKE_EXE_LINKER_FLAGS="-flto=auto" \
+            -DCMAKE_SHARED_LINKER_FLAGS="-flto=auto" \
+            -DCMAKE_MODULE_LINKER_FLAGS="-flto=auto" \
+            -DCMAKE_AR=ar \
+            -DCMAKE_NM=nm \
+            -DCMAKE_RANLIB=ranlib \
             -DZIG_STATIC_LLVM=OFF \
             -DZIG_SHARED_LLVM=ON \
             -DZIG_VERSION="$ZIG_VERSION" \
