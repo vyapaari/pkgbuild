@@ -41,7 +41,7 @@ echo "Installing Mingw-w64 build dependencies..."
 for i in {1..3}; do
   echo "Attempt $i: Installing dependencies..."
   pacman -S --noconfirm --needed \
-    mingw-w64-x86_64-{llvm,clang,lld,zlib,zstd,cmake,ninja,gcc,git,gcc-lto-dump} \   
+    mingw-w64-x86_64-{llvm,clang,lld,zlib,zstd,cmake,ninja,gcc,git} \
     base-devel \
     which && break
   
@@ -52,7 +52,7 @@ for i in {1..3}; do
     # Try installing packages individually
     for pkg in mingw-w64-x86_64-llvm mingw-w64-x86_64-clang mingw-w64-x86_64-lld \
                mingw-w64-x86_64-zlib mingw-w64-x86_64-zstd mingw-w64-x86_64-cmake \
-               mingw-w64-x86_64-ninja mingw-w64-x86_64-gcc mingw-w64-x86_64-curl \
+               mingw-w64-x86_64-ninja mingw-w64-x86_64-gcc \
                mingw-w64-x86_64-git base-devel which; do
       echo "Installing $pkg..."
       pacman -S --noconfirm --needed $pkg || echo "Warning: Failed to install $pkg"
