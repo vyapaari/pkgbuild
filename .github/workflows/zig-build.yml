@@ -425,12 +425,12 @@ jobs:
           MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX="" \
           $CMAKE_CMD .. -G Ninja \
             -DCMAKE_C_COMPILER=/mingw64/bin/gcc.exe \
-            -DCMAKE_CXX_COMPILER=/mingw64/bin/g++.exe \  
+            -DCMAKE_CXX_COMPILER=/mingw64/bin/g++.exe \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_INSTALL_PREFIX="$MINGW_PREFIX" \
             -DCMAKE_PREFIX_PATH="/mingw64" \
-            -DCMAKE_C_FLAGS="-O2 -DNDEBUG -flto=auto"
-            -DCMAKE_CXX_FLAGS="-O2 -DNDEBUG -flto=auto"
+            -DCMAKE_C_FLAGS="-O2 -DNDEBUG -flto=auto" \
+            -DCMAKE_CXX_FLAGS="-O2 -DNDEBUG -flto=auto" \
             -DCMAKE_AR=/mingw64/bin/ar.exe \
             -DCMAKE_RANLIB=/mingw64/bin/ranlib.exe \
             -DCMAKE_LINKER=/mingw64/bin/ld.exe \
@@ -439,7 +439,7 @@ jobs:
             -DCMAKE_EXE_LINKER_FLAGS="-flto=auto" \
             -DCMAKE_SHARED_LINKER_FLAGS="-flto=auto" \
             -DCMAKE_MODULE_LINKER_FLAGS="-flto=auto" \
-            -DZIG_TARGET_TRIPLE=x86_64-windows-gnu \                                    
+            -DZIG_TARGET_TRIPLE=x86_64-windows-gnu \                               
             -DZIG_STATIC_LLVM=OFF \
             -DZIG_SHARED_LLVM=ON \
             -DZIG_VERSION="$ZIG_VERSION" \
