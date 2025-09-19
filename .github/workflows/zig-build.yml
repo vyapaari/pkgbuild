@@ -101,7 +101,7 @@ jobs:
           PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
         run: ./.github/scripts/install-deps.sh    
       
-      - name: Cache pacman packages
+      - name: Cache Pacman Packages
         uses: actions/cache@v4
         with:
           path: |
@@ -113,7 +113,7 @@ jobs:
           restore-keys: |
             mingw64-deps-${{ runner.os }}-    
       
-      - name: Verify build tools
+      - name: Verify Build Tools
         shell: bash
         env:
           MSYSTEM: MINGW64
