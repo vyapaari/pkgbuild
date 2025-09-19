@@ -262,21 +262,14 @@ jobs:
           cd build
           echo "Build directory: $(pwd)" 
                     
-          # Copy the existing config templates from stage1 instead of creating new ones
-          cp ../stage1/config.zig.in .
-          cp ../stage1/config.h.in .
+          # create new fresh new config.h.in & config.zig.in files with below feilds  
+          touch config.zig.in 
+          touch config.h.in 
           
-          echo "Using Zig's provided config templates:"
-          ls -la config.*.in
-          echo "config.zig.in first few lines:"
-          head -5 config.zig.in
-
-          # Create config.h.in template for CMake to process
-          cat > config.h.in << 'EOF'
+          cat > config.h.in << 'EOF'     
           #ifndef ZIG_CONFIG_H
-          #define ZIG_CONFIG_H
+          #define ZIG_CONFIG_H     
           #pragma once
-          
           // Used by zig0.cpp
           #define ZIG_VERSION_MAJOR @ZIG_VERSION_MAJOR@
           #define ZIG_VERSION_MINOR @ZIG_VERSION_MINOR@
@@ -301,65 +294,65 @@ jobs:
           #define ZIG_SYSTEM_LIBCXX "@ZIG_SYSTEM_LIBCXX@"
           
           // LLVM support - critical for build
-          #define ZIG_HAVE_LLVM @ZIG_HAVE_LLVM@
+          #define ZIG_HAVE_LLVM 1
 
           // Debug and logging configuration
-          #define ZIG_ENABLE_DEBUG_EXTENSIONS @ZIG_ENABLE_DEBUG_EXTENSIONS@
-          #define ZIG_DEBUG_GPA @ZIG_DEBUG_GPA@
-          #define ZIG_DEBUG_ALLOCATOR @ZIG_DEBUG_ALLOCATOR@
-          #define ZIG_DEBUG_BOUNDS_CHECK @ZIG_DEBUG_BOUNDS_CHECK@
-          #define ZIG_DEBUG_SAFE_BUILTINS @ZIG_DEBUG_SAFE_BUILTINS@
-          #define ZIG_DEBUG_STACK_TRACE @ZIG_DEBUG_STACK_TRACE@
-          #define ZIG_DEBUG_SAFETY @ZIG_DEBUG_SAFETY@
-          #define ZIG_DEBUG_VERBOSE @ZIG_DEBUG_VERBOSE@
-          #define ZIG_DEBUG_OPTIMIZE @ZIG_DEBUG_OPTIMIZE@
+          #define ZIG_ENABLE_DEBUG_EXTENSIONS 0
+          #define ZIG_DEBUG_GPA 0
+          #define ZIG_DEBUG_ALLOCATOR 0
+          #define ZIG_DEBUG_BOUNDS_CHECK 0
+          #define ZIG_DEBUG_SAFE_BUILTINS 1
+          #define ZIG_DEBUG_STACK_TRACE 1
+          #define ZIG_DEBUG_SAFETY 1
+          #define ZIG_DEBUG_VERBOSE 0
+          #define ZIG_DEBUG_OPTIMIZE 0
 
           // Logging support
-          #define ZIG_ENABLE_LOGGING @ZIG_ENABLE_LOGGING@
+          #define ZIG_ENABLE_LOGGING 0
 
           // Tracy profiler support
-          #define ZIG_ENABLE_TRACY @ZIG_ENABLE_TRACY@
+          #define ZIG_ENABLE_TRACY 0
 
           // Feature flags
-          #define ZIG_ENABLE_LLVM @ZIG_ENABLE_LLVM@
-          #define ZIG_ENABLE_ZLIB @ZIG_ENABLE_ZLIB@
-          #define ZIG_ENABLE_ZSTD @ZIG_ENABLE_ZSTD@
-          #define ZIG_STATIC_ZLIB @ZIG_STATIC_ZLIB@
-          #define ZIG_STATIC_ZSTD @ZIG_STATIC_ZSTD@
-          #define ZIG_USE_LLD @ZIG_USE_LLD@
+          #define ZIG_ENABLE_LLVM 1
+          #define ZIG_ENABLE_ZLIB 1
+          #define ZIG_ENABLE_ZSTD 1
+          #define ZIG_STATIC_ZLIB 0
+          #define ZIG_STATIC_ZSTD 0
+          #define ZIG_USE_LLD 0
 
           // Build type
-          #define ZIG_BUILD_TYPE "@CMAKE_BUILD_TYPE@"
+          #define ZIG_BUILD_TYPE "Release"
 
           // System library usage
-          #define ZIG_USE_SYSTEM_LLVM @ZIG_USE_SYSTEM_LLVM@
-          #define ZIG_USE_SYSTEM_ZLIB @ZIG_USE_SYSTEM_ZLIB@
-          #define ZIG_USE_SYSTEM_ZSTD @ZIG_USE_SYSTEM_ZSTD@
-          #define ZIG_USE_SYSTEM_LIBC @ZIG_USE_SYSTEM_LIBC@
+          #define ZIG_USE_SYSTEM_LLVM 1
+          #define ZIG_USE_SYSTEM_ZLIB 1
+          #define ZIG_USE_SYSTEM_ZSTD 1
+          #define ZIG_USE_SYSTEM_LIBC 1
 
           // Optional features
-          #define ZIG_ENABLE_TESTS @ZIG_ENABLE_TESTS@
-          #define ZIG_ENABLE_EXPERIMENTAL @ZIG_ENABLE_EXPERIMENTAL@
-          #define ZIG_VERBOSE @ZIG_VERBOSE@
+          #define ZIG_ENABLE_TESTS 0
+          #define ZIG_ENABLE_EXPERIMENTAL 0
+          #define ZIG_VERBOSE 0
 
           // Additional configuration
-          #define ZIG_IS_STAGE1 @ZIG_IS_STAGE1@
-          #define ZIG_ONLY_C @ZIG_ONLY_C@
-          #define ZIG_ONLY_CPP @ZIG_ONLY_CPP@
-          #define ZIG_FORCE_GPA @ZIG_FORCE_GPA@
-          #define ZIG_SANITIZE_C @ZIG_SANITIZE_C@
-          #define ZIG_CODE_MODEL "@ZIG_CODE_MODEL@"
-          #define ZIG_PIC @ZIG_PIC@
-          #define ZIG_PIE @ZIG_PIE@
-          #define ZIG_RED_ZONE @ZIG_RED_ZONE@
-          #define ZIG_OMIT_FRAME_POINTER @ZIG_OMIT_FRAME_POINTER@
-          #define ZIG_SINGLE_THREADED @ZIG_SINGLE_THREADED@
-          #define ZIG_STRIP @ZIG_STRIP@
-          #define ZIG_LINK_LIBC @ZIG_LINK_LIBC@
-          #define ZIG_LINK_LIBCPP @ZIG_LINK_LIBCPP@
-          #define ZIG_FUNCTION_SECTIONS @ZIG_FUNCTION_SECTIONS@
-          #define ZIG_NO_BUILTIN @ZIG_NO_BUILTIN@
-          #define ZIG_RUNTIME_SAFETY @ZIG_RUNTIME_SAFETY@
+          #define ZIG_IS_STAGE1 0
+          #define ZIG_ONLY_C 0
+          #define ZIG_ONLY_CPP 0
+          #define ZIG_FORCE_GPA 0
+          #define ZIG_SANITIZE_C 0
+          #define ZIG_CODE_MODEL "default"
+          #define ZIG_PIC 0
+          #define ZIG_PIE 0
+          #define ZIG_RED_ZONE 1
+          #define ZIG_OMIT_FRAME_POINTER 0
+          #define ZIG_SINGLE_THREADED 0
+          #define ZIG_STRIP 0
+          #define ZIG_LINK_LIBC 0
+          #define ZIG_LINK_LIBCPP 0
+          #define ZIG_FUNCTION_SECTIONS 0
+          #define ZIG_NO_BUILTIN 0
+          #define ZIG_RUNTIME_SAFETY 1
 
           // Path configuration (will be substituted by CMake)
           #define ZIG_INSTALL_PREFIX "@CMAKE_INSTALL_PREFIX@"
@@ -388,15 +381,11 @@ jobs:
           #define ZIG_ZLIB_INCLUDE_DIR "@ZLIB_INCLUDE_DIR@"
           #define ZIG_ZSTD_LIB_DIR "@ZSTD_LIB_DIR@"
           #define ZIG_ZSTD_INCLUDE_DIR "@ZSTD_INCLUDE_DIR@"
-
-          // Test configuration
-          #define ZIG_TEST_FILTER "@ZIG_TEST_FILTER@"
-          #define ZIG_TEST_NAME_PREFIX "@ZIG_TEST_NAME_PREFIX@"
           #endif  
           EOF          
 
           # Create basic config.zig.in template for CMake to process
-          cat > config.h.in << 'EOF'
+          cat > config.zig.in << 'EOF'
           pub const have_llvm = true;
           pub const llvm_has_m68k = false;
           pub const llvm_has_csky = false;
@@ -598,21 +587,23 @@ jobs:
             2>&1 | tee cmake-configure.log
 
            # Verify config files were generated properly
-            if [ -f "config.zig" ]; then
-              echo "config.zig generated successfully:"
-              head -10 config.zig
-              echo "Checking for critical fields:"
-              grep -E "(have_llvm|enable_logging|skip_non_native|enable_link_snapshots|value_interpret_mode)" config.zig || echo "Some fields not found"
-            else
-              echo "ERROR: config.zig was not generated by CMake"
-              exit 1
+          if [ -f "config.zig" ]; then
+            echo "config.zig generated successfully:"
+            head -10 config.zig
+          else
+            echo "ERROR: config.zig was not generated"
+            echo "Checking for config.zig.in:"
+            ls -la config.zig*
+            exit 1
           fi
 
           if [ -f "config.h" ]; then
-            echo "config.in generated successfully:"
+            echo "config.h generated successfully:"
             head -10 config.h
           else
-            echo "ERROR: config.h.in was not generated"
+            echo "ERROR: config.h was not generated"
+            echo "Checking for config.h.in:"
+            ls -la config.h*
             exit 1
           fi
           
