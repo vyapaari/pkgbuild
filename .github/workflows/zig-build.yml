@@ -103,7 +103,7 @@ jobs:
             CMAKE_FOUND=false
           fi
           
-          # Check ninja
+          # Check Ninja
           if which ninja; then
             echo "ninja found in PATH: $(which ninja)"
             ninja --version || echo "Warning: Could not get ninja version"
