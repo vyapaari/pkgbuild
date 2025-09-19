@@ -47,6 +47,15 @@ jobs:
           pwd
           ls -la
               
+      - name: Make Scripts Executable
+        shell: bash
+        run: | 
+          if [ -d ".github/scripts" ]; then
+            chmod +x .github/scripts/*.sh
+          else
+          echo "No scripts directory found, skipping"
+          fi
+      
       - name: Cache pacman packages
         uses: actions/cache@v4
         with:
@@ -59,15 +68,6 @@ jobs:
           restore-keys: |
             mingw64-deps-${{ runner.os }}-
       
-      - name: Make Scripts Executable
-        shell: bash
-        run: | 
-          if [ -d ".github/scripts" ]; then
-            chmod +x .github/scripts/*.sh
-          else
-          echo "No scripts directory found, skipping"
-          fi
-
       - name: Update Cache
         if: always()
         shell: bash --noprofile --norc -e -o pipefail {0}
@@ -112,7 +112,7 @@ jobs:
           MSYSTEM: MINGW64
           PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
         run: ./.github/scripts/install-deps.sh
-        
+
       - name: Verify build tools
         shell: bash
         env:
