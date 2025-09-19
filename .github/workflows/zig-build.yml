@@ -24,7 +24,7 @@ jobs:
       - name: Setup Git for Windows SDK
         uses: git-for-windows/setup-git-for-windows-sdk@v1
         with:
-          flavor: build-installers
+          flavor: full
           architecture: x86_64
           cache: true
 
@@ -408,7 +408,9 @@ jobs:
           # Configure with CMake using explicit command
           echo "Configuring with CMake..."
           MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-          $CMAKE_CMD .. -GNinja \
+          $CMAKE_CMD .. -G Ninja \
+            -DCMAKE_C_COMPILER=/mingw64/bin/gcc.exe \
+            -DCMAKE_CXX_COMPILER=/mingw64/bin/g++.exe \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_INSTALL_PREFIX="$MINGW_PREFIX" \
             -DCMAKE_C_COMPILER=gcc \
@@ -418,9 +420,6 @@ jobs:
             -DCMAKE_EXE_LINKER_FLAGS="-flto=auto" \
             -DCMAKE_SHARED_LINKER_FLAGS="-flto=auto" \
             -DCMAKE_MODULE_LINKER_FLAGS="-flto=auto" \
-            -DCMAKE_AR=ar \
-            -DCMAKE_NM=nm \
-            -DCMAKE_RANLIB=ranlib \
             -DZIG_STATIC_LLVM=OFF \
             -DZIG_SHARED_LLVM=ON \
             -DZIG_VERSION="$ZIG_VERSION" \

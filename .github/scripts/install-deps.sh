@@ -41,7 +41,7 @@ echo "Installing Mingw-w64 build dependencies..."
 for i in {1..3}; do
   echo "Attempt $i: Installing dependencies..."
   pacman -S --noconfirm --needed \
-    mingw-w64-x86_64-{llvm,clang,lld,zlib,zstd,cmake,ninja,gcc,git,binutils} \
+    mingw-w64-x86_64-{llvm,clang,lld,zlib,zstd,cmake,ninja,gcc,git,toolchain} \
     base-devel \
     which && break
   
