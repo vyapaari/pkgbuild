@@ -477,7 +477,8 @@ jobs:
           echo "Optimizing build for Windows runner memory limits..."
           
           # Reduce memory usage by disabling unnecessary features
-          $CMAKE_CMD -DZIG_VERBOSE=OFF -DZIG_ENABLE_TESTS=OFF .
+          MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+          $CMAKE_CMD . -DZIG_VERBOSE=OFF -DZIG_ENABLE_TESTS=OFF
           
           # Clean up any previous build artifacts to save space
           find . -name "*.o" -delete 2>/dev/null || true
