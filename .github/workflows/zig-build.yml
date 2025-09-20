@@ -478,7 +478,7 @@ jobs:
           
           # Reduce memory usage by disabling unnecessary features
           MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-          $CMAKE_CMD . -DZIG_VERBOSE=OFF -DZIG_ENABLE_TESTS=OFF
+          $CMAKE_CMD ./ -DZIG_VERBOSE=OFF -DZIG_ENABLE_TESTS=OFF   # <- FIXED THIS LINE
           
           # Clean up any previous build artifacts to save space
           find . -name "*.o" -delete 2>/dev/null || true
