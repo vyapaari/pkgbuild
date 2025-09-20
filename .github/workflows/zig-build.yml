@@ -423,22 +423,23 @@ jobs:
           # Configure with CMake using explicit command
           echo "Configuring with CMake..."
           MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX="" \
-          $CMAKE_CMD .. -G Ninja \
+          /mingw64/bin/cmake.exe .. -G Ninja \
             -DCMAKE_C_COMPILER=/mingw64/bin/gcc.exe \
             -DCMAKE_CXX_COMPILER=/mingw64/bin/g++.exe \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_INSTALL_PREFIX="$MINGW_PREFIX" \
             -DCMAKE_PREFIX_PATH="/mingw64" \
-            -DCMAKE_C_FLAGS="-O2 -DNDEBUG -flto=auto" \
-            -DCMAKE_CXX_FLAGS="-O2 -DNDEBUG -flto=auto" \
+            -DCMAKE_C_FLAGS="-O2 -DNDEBUG \
+            -DCMAKE_CXX_FLAGS="-O2 -DNDEBUG \
             -DCMAKE_AR=/mingw64/bin/ar.exe \
             -DCMAKE_RANLIB=/mingw64/bin/ranlib.exe \
             -DCMAKE_LINKER=/mingw64/bin/ld.exe \
-            -DCMAKE_MAKE_PROGRAM="$NINJA_CMD" \
-            -DCMAKE_CXX_STANDARD=17 \
-            -DCMAKE_EXE_LINKER_FLAGS="-flto=auto" \
-            -DCMAKE_SHARED_LINKER_FLAGS="-flto=auto" \
-            -DCMAKE_MODULE_LINKER_FLAGS="-flto=auto" \
+            -DLLVM_DIR=/mingw64/lib/cmake/llvm \         
+            -DLLVM_ENABLE_RTTI=ON \
+            -DZIG_HAVE_LLVM=ON \
+            -DZIG_ENABLE_LOGGING=OFF \
+            -DZIG_SKIP_NON_NATIVE=ON \
+            -DZIG_ENABLE_LINK_SNAPSHOTS=OFF \
             -DZIG_TARGET_TRIPLE=x86_64-windows-gnu \                               
             -DZIG_STATIC_LLVM=OFF \
             -DZIG_SHARED_LLVM=ON \
@@ -472,8 +473,8 @@ jobs:
           # echo "Building with single-threaded linking for stability..."
           # $NINJA_CMD -j1 2>&1 | tee cmake-build.log
 
-          echo "Building with 15-minute timeout to prevent hanging..."
-          timeout 15m $NINJA_CMD -j1 2>&1 | tee cmake-build.log
+            echo "Building with 15-minute timeout to prevent hanging..."
+            timeout 15m $NINJA_CMD -j1 2>&1 | tee cmake-build.log
 
           if [ $? -eq 124 ]; then
             echo "Build timed out after 15 minutes - trying parallel build..."
@@ -482,7 +483,7 @@ jobs:
 
           if [ $? -ne 0 ]; then
             echo "Ninja build failed. Last 100 lines of log:"
-            tail -100 cmake-build.log:' || echo "No build log found"'
+            tail -100 cmake-build.log || echo "No build log found"  # ← FIXED THIS LINE
             echo "Build directory contents:"
             ls -la
             exit 1
