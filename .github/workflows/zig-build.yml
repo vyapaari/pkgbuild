@@ -423,6 +423,7 @@ jobs:
           # Configure with CMake using explicit command
           echo "Configuring with CMake..."
           MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+          $CMAKE_CMD -B . -S .. -DZIG_VERBOSE=OFF -DZIG_ENABLE_TESTS=OFF \
           /mingw64/bin/cmake.exe .. -G Ninja \
             -DCMAKE_C_COMPILER=/mingw64/bin/gcc.exe \
             -DCMAKE_CXX_COMPILER=/mingw64/bin/g++.exe \
