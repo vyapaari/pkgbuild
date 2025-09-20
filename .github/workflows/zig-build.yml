@@ -162,6 +162,15 @@ jobs:
               ls -la
               exit 1
             fi
+      
+          # --- NEW STEP: SOLVE LINKING ISSUES ---
+      - name: Install missing system libraries for linking
+        shell: bash
+        run: |
+          echo "Installing missing system libraries (zlib, zstd, ntldd) to resolve linker errors..."
+          pacman -S --noconfirm --needed \
+            mingw-w64-x86_64-{zlib,zstd,ntldd,} \
+            echo "Missing libraries installed"
 
       - name: Configure build environment
         shell: bash
@@ -370,8 +379,7 @@ jobs:
           find . -name "*.obj" -delete 2>/dev/null || true
         
           echo "Build optimized for memory constraints"
-          echo "Building with $BUILD_JOBS parallel jobs for better performance..."
-          cd zig-source/build  # ← ADDED THIS LINE 
+                    cd zig-source/build  # ← ADDED THIS LINE 
           # Build with timeout for single-threaded compilation
           echo "Starting single-threaded build (this will take time)..."
           timeout 45m /mingw64/bin/ninja.exe -j1 2>&1 | tee cmake-build.log
