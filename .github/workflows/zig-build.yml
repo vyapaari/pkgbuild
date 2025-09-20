@@ -483,7 +483,7 @@ jobs:
 
           if [ $? -ne 0 ]; then
             echo "Ninja build failed. Last 100 lines of log:"
-            tail -100 cmake-build.log || echo "No build log found"  # ← FIXED THIS LINE
+            tail -100 cmake-build.log || echo "No build log found" 
             echo "Build directory contents:"
             ls -la
             exit 1
