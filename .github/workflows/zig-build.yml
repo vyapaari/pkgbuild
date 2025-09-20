@@ -381,7 +381,7 @@ jobs:
         
           if [ $? -eq 124 ]; then
              echo "Build timed out after 15 minutes - trying single-threaded..."
-              timeout 10m "$NINJA_CMD -j1 2>&1" | tee cmake-build-timeout.log
+              timeout 10m "$NINJA_CMD -j1" 2>&1 | tee cmake-build-timeout.log
           fi
             
           if [ $? -ne 0 ]; then
