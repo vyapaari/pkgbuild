@@ -435,7 +435,6 @@ jobs:
             -DCMAKE_RANLIB=/mingw64/bin/ranlib.exe \
             -DCMAKE_LINKER=/mingw64/bin/ld.exe \
             -DLLVM_DIR=/mingw64/lib/cmake/llvm \     
-            -DLLVM_ENABLE_RTTI=ON \
             -DZIG_HAVE_LLVM=ON \
             -DZIG_ENABLE_LOGGING=OFF \
             -DZIG_SKIP_NON_NATIVE=ON \
