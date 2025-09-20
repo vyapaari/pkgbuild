@@ -375,13 +375,14 @@ jobs:
         
           echo "Build optimized for memory constraints"
           echo "Building with $BUILD_JOBS parallel jobs for better performance..."
-       
+          cd zig-source/build  # ← ADDED THIS LINE 
            # Build with timeout and fallback
-          timeout 15m "$NINJA_CMD -j$BUILD_JOBS" 2>&1 | tee cmake-build.log
+          timeout 15m $NINJA_CMD -j$BUILD_JOBS 2>&1 | tee cmake-build.log
+          
         
           if [ $? -eq 124 ]; then
              echo "Build timed out after 15 minutes - trying single-threaded..."
-              timeout 10m "$NINJA_CMD -j1" 2>&1 | tee cmake-build-timeout.log
+              timeout 10m $NINJA_CMD -j1 2>&1 | tee cmake-build-timeout.log
           fi
             
           if [ $? -ne 0 ]; then
