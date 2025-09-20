@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Downloading Zig source..."
+echo "Downloading Zig Source..."
           
           # Extract source URL from PKGBUILD and expand variables
           if [ -f "PKGBUILD" ]; then
