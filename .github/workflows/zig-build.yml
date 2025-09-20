@@ -98,8 +98,8 @@ jobs:
         env:
           MSYSTEM: MINGW64
           PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
-        run: ./.github/scripts/build-verify.sh
-
+        run: ./.github/scripts/verify-build.sh
+        
       - name: Cache Zig Source
         uses: actions/cache@v4
         with:
