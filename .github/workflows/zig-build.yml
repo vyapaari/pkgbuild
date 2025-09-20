@@ -434,12 +434,11 @@ jobs:
             -DCMAKE_AR=/mingw64/bin/ar.exe \
             -DCMAKE_RANLIB=/mingw64/bin/ranlib.exe \
             -DCMAKE_LINKER=/mingw64/bin/ld.exe \
-            -DLLVM_DIR=/mingw64/lib/cmake/llvm \     
             -DZIG_HAVE_LLVM=ON \
             -DZIG_ENABLE_LOGGING=OFF \
             -DZIG_SKIP_NON_NATIVE=ON \
             -DZIG_ENABLE_LINK_SNAPSHOTS=OFF \
-            -DZIG_TARGET_TRIPLE=x86_64-windows-gnu \                            
+            -DZIG_TARGET_TRIPLE=x86_64-windows-gnu \
             -DZIG_STATIC_LLVM=OFF \
             -DZIG_SHARED_LLVM=ON \
             -DZIG_VERSION="$ZIG_VERSION" \
