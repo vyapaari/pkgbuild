@@ -482,11 +482,12 @@ jobs:
           fi
 
           if [ $? -ne 0 ]; then
-            echo "Ninja build failed. Last 100 lines of log:"
-            tail -100 cmake-build.log || echo "No build log found" 
-            echo "Build directory contents:"
-            ls -la
-            exit 1
+            echo "Ninja build failed."
+          # Try to show log if it exists
+          [ -f "cmake-build.log" ] && tail -100 cmake-build.log
+          echo "Build directory contents:"
+          ls -la
+          exit 1
           fi
 
       - name: Diagnose build failure
