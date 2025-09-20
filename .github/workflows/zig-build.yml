@@ -423,7 +423,6 @@ jobs:
           # Configure with CMake using explicit command
           echo "Configuring with CMake..."
           MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-          $CMAKE_CMD -B . -S .. -DZIG_VERBOSE=OFF -DZIG_ENABLE_TESTS=OFF \
           /mingw64/bin/cmake.exe .. -G Ninja \
             -DCMAKE_C_COMPILER=/mingw64/bin/gcc.exe \
             -DCMAKE_CXX_COMPILER=/mingw64/bin/g++.exe \
@@ -476,10 +475,6 @@ jobs:
         shell: bash
         run: |
           echo "Optimizing build for Windows runner memory limits..."
-          
-          # Reduce memory usage by disabling unnecessary features
-          MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-          $CMAKE_CMD ./ -DZIG_VERBOSE=OFF -DZIG_ENABLE_TESTS=OFF   # <- FIXED THIS LINE
           
           # Clean up any previous build artifacts to save space
           find . -name "*.o" -delete 2>/dev/null || true
