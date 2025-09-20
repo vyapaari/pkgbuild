@@ -11,7 +11,7 @@ on:
 
 env:
   ZIG_VERSION: "0.15.1"
-  BUILD_JOBS: 1
+  BUILD_JOBS: 2
   MINGW_ARCH: mingw64
   MINGW_PREFIX: /mingw64
 
@@ -469,24 +469,41 @@ jobs:
           fi
 
           # echo "Building with single-threaded linking for stability..."
-          # $NINJA_CMD -j1 2>&1 | tee cmake-build.log
+          # $NINJA_CMD -j1 2>&1 | tee cmake-build.log ( old way )
 
-            echo "Building with $BUILD_JOBS parallel jobs for better performance..."
-            timeout 15m $NINJA_CMD -j$BUILD_JOBS 2>&1 | tee cmake-build.log
-
+      - name: Optimize and build with memory management
+        shell: bash
+        run: |
+          echo "Optimizing build for Windows runner memory limits..."
+          
+          # Reduce memory usage by disabling unnecessary features
+          $CMAKE_CMD -DZIG_VERBOSE=OFF -DZIG_ENABLE_TESTS=OFF .
+          
+          # Clean up any previous build artifacts to save space
+          find . -name "*.o" -delete 2>/dev/null || true
+          find . -name "*.obj" -delete 2>/dev/null || true
+        
+          echo "Build optimized for memory constraints"
+          echo "Building with $BUILD_JOBS parallel jobs for better performance..."
+       
+           # Build with timeout and fallback
+          timeout 15m $NINJA_CMD -j$BUILD_JOBS 2>&1 | tee cmake-build.log
+        
           if [ $? -eq 124 ]; then
-            echo "Build timed out after 15 minutes - trying single-threaded..."
-            timeout 10m $NINJA_CMD -j1 2>&1 | tee cmake-build-timeout.log
+             echo "Build timed out after 15 minutes - trying single-threaded..."
+              timeout 10m $NINJA_CMD -j1 2>&1 | tee cmake-build-timeout.log
           fi
-
+            
           if [ $? -ne 0 ]; then
-            echo "Ninja build failed. Last 100 lines of log:"
+          echo "Ninja build failed. Last 100 lines of log:"
           # Try to show log if it exists
           [ -f "cmake-build.log" ] && tail -100 cmake-build.log
           echo "Build directory contents:"
           ls -la
           exit 1
-          fi
+          fi              
+    
+          echo "Build completed successfully!" ! Progessing for Stage 2
 
       - name: Diagnose build failure
         if: failure()
