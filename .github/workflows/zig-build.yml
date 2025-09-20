@@ -471,16 +471,16 @@ jobs:
           # echo "Building with single-threaded linking for stability..."
           # $NINJA_CMD -j1 2>&1 | tee cmake-build.log
 
-            echo "Building with 15-minute timeout to prevent hanging..."
-            timeout 15m $NINJA_CMD -j1 2>&1 | tee cmake-build.log
+            echo "Building with $BUILD_JOBS parallel jobs for better performance..."
+            timeout 15m $NINJA_CMD -j$BUILD_JOBS 2>&1 | tee cmake-build.log
 
           if [ $? -eq 124 ]; then
-            echo "Build timed out after 15 minutes - trying parallel build..."
-            $NINJA_CMD -j2 2>&1 | tee cmake-build-timeout.log
+            echo "Build timed out after 15 minutes - trying single-threaded..."
+            timeout 10m $NINJA_CMD -j1 2>&1 | tee cmake-build-timeout.log
           fi
 
           if [ $? -ne 0 ]; then
-            echo "Ninja build failed."
+            echo "Ninja build failed. Last 100 lines of log:"
           # Try to show log if it exists
           [ -f "cmake-build.log" ] && tail -100 cmake-build.log
           echo "Build directory contents:"
@@ -493,6 +493,8 @@ jobs:
         shell: bash
         run: |
           echo "=== Build Failure Diagnosis ==="
+          cd zig-source/build  # ← ADD THIS LINE
+          echo "Current directory: $(pwd)"
           echo "Last 50 lines of build log:"
           tail -50 cmake-build.log || echo "No build log found"
           echo ""
