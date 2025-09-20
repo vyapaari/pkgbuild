@@ -81,80 +81,24 @@ jobs:
           MSYSTEM: MINGW64
           PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
         run: ./.github/scripts/install-deps.sh    
-            
-     # Update cache AFTER installing dependencies  
-      - name: Update Cache
-        if: always()
-        shell: bash --noprofile --norc -e -o pipefail {0}
-        run: ./.github/scripts/update-cache.sh   
+
+      - name: Save Pacman Packages Cache
+        uses: actions/cache/save@v4
+        if: always() # Crucial: save even if later steps fail
+        with:
+          path: |
+              /var/cache/pacman/pkg
+              /mingw64/bin
+              /mingw64/lib
+              /mingw64/include
+          key: mingw64-deps-${{ runner.os }}-${{ hashFiles('PKGBUILD') }}
      
       - name: Verify Build Tools
         shell: bash
         env:
           MSYSTEM: MINGW64
           PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
-        run: |
-          echo "Verifying build tools installation:"
-          
-          # Check cmake
-          if which cmake; then
-            echo "cmake found in PATH: $(which cmake)"
-            cmake --version || echo "Warning: Could not get cmake version"
-            CMAKE_FOUND=true
-          elif [ -f "/mingw64/bin/cmake.exe" ]; then
-            echo "cmake found at: /mingw64/bin/cmake.exe"
-            /mingw64/bin/cmake.exe --version | head -1 || echo "Warning: Could not get cmake version"
-            CMAKE_FOUND=true
-          else
-            echo "ERROR: cmake not found"
-            CMAKE_FOUND=false
-          fi
-          
-          # Check Ninja
-          if which ninja; then
-            echo "ninja found in PATH: $(which ninja)"
-            ninja --version || echo "Warning: Could not get ninja version"
-            NINJA_FOUND=true
-          elif [ -f "/mingw64/bin/ninja.exe" ]; then
-            echo "ninja found at: /mingw64/bin/ninja.exe"
-            /mingw64/bin/ninja.exe --version || echo "Warning: Could not get ninja version"
-            NINJA_FOUND=true
-          else
-            echo "ERROR: ninja not found"
-            NINJA_FOUND=false
-          fi
-          
-          # Check gcc
-          if which gcc; then
-            echo "gcc found in PATH: $(which gcc)"
-            gcc --version || echo "Warning: Could not get gcc version"
-            GCC_FOUND=true
-          elif [ -f "/mingw64/bin/gcc.exe" ]; then
-            echo "gcc found at: /mingw64/bin/gcc.exe"
-            /mingw64/bin/gcc.exe --version | head -1 || echo "Warning: Could not get gcc version"
-            GCC_FOUND=true
-          else
-            echo "ERROR: gcc not found"
-            GCC_FOUND=false
-          fi
-          
-          # Check Curl
-          if which curl; then
-            echo "curl found in PATH: $(which curl)"
-          elif [ -f "/mingw64/bin/curl.exe" ]; then
-            echo "curl found at: /mingw64/bin/curl.exe"
-          else
-            echo "ERROR: curl not found"
-          fi
-          
-          # Exit if critical tools missing
-          if [ "$CMAKE_FOUND" != "true" ] || [ "$NINJA_FOUND" != "true" ]; then
-            echo "Critical build tools missing. Listing /mingw64/bin contents:"
-            ls -la /mingw64/bin/ | grep -E "(cmake|ninja)" || echo "No cmake/ninja found"
-            exit 1
-          fi
-          
-          echo "All critical build tools found."
+        run: ./.github/scripts/build-verify.sh
 
       - name: Cache Zig Source
         uses: actions/cache@v4
@@ -166,14 +110,14 @@ jobs:
           restore-keys: 
             zig-source-${{ env.ZIG_VERSION }}
 
-      - name: Verify cache setup
+      - name: Verify Zig cache setup
         shell: bash
         run: |
           echo "Cache setup complete - warnings are normal for first run"
           echo "Cache key: zig-source-$ZIG_VERSION"
           echo "Next runs will use cached dependencies once this build completes"       
 
-      - name: Verify cache download
+      - name: Verify Zig Cache Download
         shell: bash 
         run: |
           if [ -f "zig-source.tar.xz" ]; then
@@ -193,67 +137,16 @@ jobs:
         env:
           MSYSTEM: MINGW64
           PATH: /mingw64/bin:/usr/local/bin:/usr/bin:/bin:/opt/bin
-        run: |
-          echo "Downloading Zig source..."
-          
-          # Extract source URL from PKGBUILD and expand variables
-          if [ -f "PKGBUILD" ]; then
-            source_line=$(grep '^source=' PKGBUILD | head -1)
-            
-            # More robust parsing that handles quotes properly
-            source_url=$(echo "$source_line" | sed -e 's/^source=(//' -e 's/)$//' -e 's/["'\'']*//g' -e "s/\\\${pkgver}/$ZIG_VERSION/g")
-            echo "Parsed source URL: $source_url"
-            
-          else
-            # Fallback to direct URL if no PKGBUILD
-            source_url="https://ziglang.org/download/$ZIG_VERSION/zig-$ZIG_VERSION.tar.xz"
-            echo "Using fallback URL: $source_url"
-          fi
-          
-          if [[ $source_url == http* ]]; then
-            echo "Downloading from: $source_url"
-            
-            # Try different curl locations
-            CURL_CMD=""
-            if [ -f "/mingw64/bin/curl.exe" ]; then
-              CURL_CMD="/mingw64/bin/curl.exe"
-            elif command -v curl >/dev/null 2>&1; then
-              CURL_CMD="curl"
-            else
-              echo "ERROR: curl not found anywhere"
-              echo "Attempting to install curl..."
-              pacman -S --noconfirm mingw-w64-x86_64-curl
-              if [ -f "/mingw64/bin/curl.exe" ]; then
-                CURL_CMD="/mingw64/bin/curl.exe"
-              else
-                echo "ERROR: curl installation failed"
-                exit 1
-              fi
-            fi
-            
-            echo "Using curl at: $CURL_CMD"
-            $CURL_CMD -L --connect-timeout 30 --max-time 600 --retry 3 --retry-delay 5 -f -o zig-source.tar.xz "$source_url"
-            
-          else
-            echo "Error: Invalid URL: $source_url"
-            exit 1
-          fi
-          
-          # Verify download
-          if [ ! -f "zig-source.tar.xz" ] || [ ! -s "zig-source.tar.xz" ]; then
-            echo "Error: Download failed or file is empty"
-            exit 1
-          fi
-          
-          # Extract source
-          echo "Extracting Zig source..."
-          tar -xf zig-source.tar.xz
-          if [ ! -d "zig-$ZIG_VERSION" ]; then
-            echo "Error: Extraction failed - directory zig-$ZIG_VERSION not found"
-            ls -la
-            exit 1
-          fi
-          mv "zig-$ZIG_VERSION" zig-source
+        run: ./.github/scripts/zig-source.sh
+      
+      - name: Save Zig Source Cache
+        uses: actions/cache/save@v4
+        if: always() # Save even if the build fails later
+        with:
+           path: |
+            zig-source.tar.xz
+            zig-source/
+           key: zig-source-${{ runner.os }}-${{ hashFiles('PKGBUILD') }}   
 
       - name: Verify zig-source exists
         shell: bash
